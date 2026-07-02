@@ -1,6 +1,7 @@
 # Crime Info Service
 
-Production-oriented Spring Boot 3 base application using MongoDB and GraphQL.
+Spring Boot 3 service that ingests Australian crime data from state and territory
+open data portals into MongoDB and exposes it through a GraphQL API.
 
 ## Stack
 
@@ -21,7 +22,7 @@ Production-oriented Spring Boot 3 base application using MongoDB and GraphQL.
 1. Start MongoDB:
 
 ```bash
-docker compose up -d
+docker compose -f infra/docker-compose-mongo.yml up -d
 ```
 
 2. Run the application:
@@ -32,65 +33,52 @@ docker compose up -d
 
 3. Open GraphiQL at [http://localhost:8080/graphiql](http://localhost:8080/graphiql)
 
-## Sample GraphQL operations
+## Docker deployment
 
-Create a book:
+Build the war and run the full stack (MongoDB + application) with the compose
+files in [`infra/`](infra/):
 
-```graphql
-mutation {
-  createBook(input: { title: "Dune", author: "Frank Herbert", genre: "Sci-Fi" }) {
-    id
-    title
-    author
-    genre
-    createdAt
-  }
-}
+```bash
+./gradlew bootWar
+docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml up -d --build
 ```
 
-List books:
+The application image is built from [`infra/Dockerfile`](infra/Dockerfile) and
+runs the executable war on port 8080 with the `prod` profile.
 
-```graphql
-query {
-  books {
-    id
-    title
-    author
-    genre
-  }
-}
-```
+## Crime data ingestion
 
-Get a book by ID:
+Sources are configured under `ingestion.sources` in
+[`application.yml`](src/main/resources/application.yml). One entry exists per
+Australian state/territory (QLD, NSW, VIC, SA, WA, TAS, NT, ACT), all backed by
+CKAN open data portals. For each source you want to use, set the dataset's
+datastore `resource-id` and flip `enabled: true`.
+
+List configured sources:
 
 ```graphql
 query {
-  book(id: "YOUR_BOOK_ID") {
-    id
-    title
-    author
+  ingestionSources
+}
+```
+
+Trigger ingestion (one source, or omit `source` to run all enabled ones):
+
+```graphql
+mutation {
+  ingestCrimeData(source: "qld-police-offences") {
+    source
+    fetched
+    inserted
+    duplicates
+    failed
+    error
   }
 }
 ```
 
-Update a book:
-
-```graphql
-mutation {
-  updateBook(id: "YOUR_BOOK_ID", input: { title: "Dune: Part One" }) {
-    id
-    title
-  }
-}
-```
-
-Delete a book:
-
-```graphql
-mutation {
-  deleteBook(id: "YOUR_BOOK_ID")
-}
-```
+Scheduled ingestion is off by default; enable it via `ingestion.schedule.enabled`
+(cron configurable through `ingestion.schedule.cron`).
 
 ## Profiles
 
@@ -123,11 +111,14 @@ Integration tests use Testcontainers and require Docker. When Docker is not avai
 ## Project structure
 
 ```
+infra/               # Dockerfile and docker-compose files
 src/main/java/com/example/springgraphqlmongo/
+├── config/          # Ingestion configuration properties and wiring
 ├── domain/          # MongoDB @Document entities
+├── ingestion/       # Data source contract, CKAN adapter, scheduler
 ├── repository/      # Spring Data repositories
 ├── service/         # Business logic
-├── graphql/         # GraphQL controllers and DTOs
+├── graphql/         # GraphQL controllers
 └── exception/       # Shared exceptions
 ```
 

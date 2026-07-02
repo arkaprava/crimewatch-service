@@ -1,30 +1,83 @@
-type Book {
+enum CrimeType {
+  THEFT
+  BURGLARY
+  ROBBERY
+  ASSAULT
+  HOMICIDE
+  KIDNAPPING
+  VANDALISM
+  FRAUD
+  CYBERCRIME
+  DRUG_OFFENSE
+  ARSON
+  OTHER
+}
+
+enum CrimeSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CrimeStatus {
+  REPORTED
+  UNDER_INVESTIGATION
+  ARREST_MADE
+  CLOSED
+  UNSOLVED
+}
+
+type Coordinates {
+  latitude: Float!
+  longitude: Float!
+}
+
+type Location {
+  address: String
+  city: String!
+  state: String
+  country: String!
+  postalCode: String
+  coordinates: Coordinates
+}
+
+type CrimeIncident {
   id: ID!
+  source: String
+  externalId: String
   title: String!
-  author: String!
-  genre: String
-  createdAt: String
+  description: String
+  crimeType: CrimeType!
+  severity: CrimeSeverity!
+  status: CrimeStatus!
+  location: Location!
+  "When the crime occurred, ISO-8601."
+  occurredAt: String!
+  "When the crime was reported to this service, ISO-8601."
+  reportedAt: String
 }
 
-input CreateBookInput {
-  title: String!
-  author: String!
-  genre: String
-}
-
-input UpdateBookInput {
-  title: String
-  author: String
-  genre: String
+type IngestionResult {
+  source: String!
+  fetched: Int!
+  inserted: Int!
+  duplicates: Int!
+  failed: Int!
+  error: String
 }
 
 type Query {
-  book(id: ID!): Book
-  books(author: String): [Book!]!
+  "Single incident by id."
+  crimeIncident(id: ID!): CrimeIncident
+  "Incidents filtered by location and/or classification; all filters optional."
+  crimeIncidents(city: String, state: String, crimeType: CrimeType, status: CrimeStatus): [CrimeIncident!]!
+  "Incidents within radiusKm of a point, nearest first."
+  crimesNearLocation(latitude: Float!, longitude: Float!, radiusKm: Float! = 10.0): [CrimeIncident!]!
+  ingestionSources: [String!]!
 }
 
 type Mutation {
-  createBook(input: CreateBookInput!): Book!
-  updateBook(id: ID!, input: UpdateBookInput!): Book!
-  deleteBook(id: ID!): Boolean!
+  "Trigger ingestion for one source, or every enabled source when omitted."
+  ingestCrimeData(source: String): [IngestionResult!]!
 }

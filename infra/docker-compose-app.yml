@@ -1,0 +1,17 @@
+# Application overlay; merge with the mongo file. Build the war first:
+#   ./gradlew bootWar
+#   docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml up -d --build
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    container_name: crime-info-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MONGODB_URI: mongodb://mongodb:27017/crime_info_service
+    depends_on:
+      mongodb:
+        condition: service_healthy

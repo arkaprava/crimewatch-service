@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.GeoSpatialIndexType;
 import org.springframework.data.mongodb.core.index.GeoSpatialIndexed;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -23,10 +24,19 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "crime_incidents")
+@CompoundIndex(name = "source_external_id_idx", def = "{'source': 1, 'externalId': 1}", unique = true, sparse = true)
 public class CrimeIncident {
 
 	@Id
 	private String id;
+
+	/** Identifier of the data source this incident was ingested from (e.g. "qld-police-offences"). */
+	@Size(max = 100)
+	private String source;
+
+	/** Stable identifier of the record within its source, used for de-duplication. */
+	@Size(max = 255)
+	private String externalId;
 
 	@NotBlank
 	@Size(max = 255)

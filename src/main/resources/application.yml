@@ -6,6 +6,8 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27017/crime_info_service
+      # Create indexes declared on @Document entities (2dsphere, compound, ...).
+      auto-index-creation: true
   graphql:
     graphiql:
       enabled: false
@@ -25,3 +27,132 @@ info:
   app:
     name: crime-info-service
     version: 0.0.1-SNAPSHOT
+
+# Australian crime data ingestion. Sources are CKAN open data portals; set the
+# real datastore resource ids and enable per source. Trigger manually via the
+# ingestCrimeData GraphQL mutation or enable the schedule below.
+ingestion:
+  enabled: true
+  schedule:
+    enabled: false
+    cron: "0 0 3 * * *"
+  sources:
+    - name: qld-police-offences
+      enabled: false
+      base-url: https://www.data.qld.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: QLD
+      zone-id: Australia/Brisbane
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence_description
+        category: offence_category
+        occurred-at: occurrence_date
+        suburb: suburb
+        postal-code: postcode
+        latitude: latitude
+        longitude: longitude
+    - name: nsw-bocsar-incidents
+      enabled: false
+      base-url: https://data.nsw.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: NSW
+      zone-id: Australia/Sydney
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence_type
+        category: offence_category
+        occurred-at: incident_date
+        suburb: suburb
+        postal-code: postcode
+        latitude: bcsr_latitude
+        longitude: bcsr_longitude
+    - name: vic-csa-offences
+      enabled: false
+      base-url: https://discover.data.vic.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: VIC
+      zone-id: Australia/Melbourne
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence_subdivision
+        category: offence_division
+        occurred-at: offence_date
+        suburb: suburb_town_name
+        postal-code: postcode
+    - name: sa-police-crime-statistics
+      enabled: false
+      base-url: https://data.sa.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: SA
+      zone-id: Australia/Adelaide
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence_level_3_description
+        category: offence_level_1_description
+        occurred-at: reported_date
+        suburb: suburb_incident
+        postal-code: postcode_incident
+    - name: wa-police-crime-statistics
+      enabled: false
+      base-url: https://catalogue.data.wa.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: WA
+      zone-id: Australia/Perth
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence
+        category: offence_category
+        occurred-at: period
+        suburb: locality
+        postal-code: postcode
+    - name: tas-dpfem-offences
+      enabled: false
+      # Tasmania publishes DPFEM crime data through the national portal.
+      base-url: https://data.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: TAS
+      zone-id: Australia/Hobart
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence_type
+        category: offence_category
+        occurred-at: incident_date
+        suburb: suburb
+        postal-code: postcode
+    - name: nt-police-crime-statistics
+      enabled: false
+      base-url: https://data.nt.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: NT
+      zone-id: Australia/Darwin
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence_type
+        category: offence_group
+        occurred-at: offence_date
+        suburb: suburb
+        postal-code: postcode
+    - name: act-policing-incidents
+      enabled: false
+      # ACT Policing datasets mirrored on the national portal; the ACT's own
+      # portal (data.act.gov.au) is Socrata, which needs a custom CrimeDataSource.
+      base-url: https://data.gov.au
+      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      state: ACT
+      zone-id: Australia/Canberra
+      batch-size: 500
+      fields:
+        id: _id
+        title: offence_type
+        category: offence_category
+        occurred-at: incident_date
+        suburb: suburb
+        postal-code: postcode
