@@ -1,0 +1,173 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SA:ADELAIDE",
+        "name": "Adelaide",
+        "state": "SA",
+        "postcode": "5000",
+        "source": "ABS-ASGS",
+        "aliases": ["ADELAIDE", "Adelaide SA"],
+        "centroid": [138.6007, -34.9285]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [138.5800, -34.9450],
+            [138.6200, -34.9450],
+            [138.6200, -34.9100],
+            [138.5800, -34.9100],
+            [138.5800, -34.9450]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SA:NORTH-ADELAIDE",
+        "name": "North Adelaide",
+        "state": "SA",
+        "postcode": "5006",
+        "source": "ABS-ASGS",
+        "aliases": ["NORTH ADELAIDE"],
+        "centroid": [138.5940, -34.9060]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [138.5800, -34.9150],
+            [138.6080, -34.9150],
+            [138.6080, -34.8970],
+            [138.5800, -34.8970],
+            [138.5800, -34.9150]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SA:GLENELG",
+        "name": "Glenelg",
+        "state": "SA",
+        "postcode": "5045",
+        "source": "ABS-ASGS",
+        "aliases": ["GLENELG"],
+        "centroid": [138.5120, -34.9800]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [138.5000, -34.9900],
+            [138.5240, -34.9900],
+            [138.5240, -34.9700],
+            [138.5000, -34.9700],
+            [138.5000, -34.9900]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "NSW:SYDNEY",
+        "name": "Sydney",
+        "state": "NSW",
+        "postcode": "2000",
+        "source": "ABS-ASGS",
+        "aliases": ["SYDNEY"],
+        "centroid": [151.2093, -33.8688]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [151.1900, -33.8800],
+            [151.2300, -33.8800],
+            [151.2300, -33.8550],
+            [151.1900, -33.8550],
+            [151.1900, -33.8800]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "WA:PERTH",
+        "name": "Perth",
+        "state": "WA",
+        "postcode": "6000",
+        "source": "ABS-ASGS",
+        "aliases": ["PERTH"],
+        "centroid": [115.8605, -31.9505]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [115.8400, -31.9650],
+            [115.8800, -31.9650],
+            [115.8800, -31.9350],
+            [115.8400, -31.9350],
+            [115.8400, -31.9650]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "WA:FREMANTLE",
+        "name": "Fremantle",
+        "state": "WA",
+        "postcode": "6160",
+        "source": "ABS-ASGS",
+        "aliases": ["FREMANTLE"],
+        "centroid": [115.755, -32.056]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [115.7400, -32.0700],
+            [115.7700, -32.0700],
+            [115.7700, -32.0400],
+            [115.7400, -32.0400],
+            [115.7400, -32.0700]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "WA:SUBIACO",
+        "name": "Subiaco",
+        "state": "WA",
+        "postcode": "6008",
+        "source": "ABS-ASGS",
+        "aliases": ["SUBIACO"],
+        "centroid": [115.823, -31.948]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [115.8100, -31.9600],
+            [115.8360, -31.9600],
+            [115.8360, -31.9360],
+            [115.8100, -31.9360],
+            [115.8100, -31.9600]
+          ]
+        ]
+      }
+    }
+  ]
+}

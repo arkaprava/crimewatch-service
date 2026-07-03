@@ -1,5 +1,6 @@
 package com.example.springgraphqlmongo.graphql;
 
+import com.example.springgraphqlmongo.support.GraphQlSecurityTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.tester.AutoConfigureHttpGraphQlTester;
@@ -32,13 +33,9 @@ class IngestionGraphQlIntegrationTest {
 	@Autowired
 	private HttpGraphQlTester graphQlTester;
 
-	private HttpGraphQlTester graphQlTester() {
-		return graphQlTester;
-	}
-
 	@Test
 	void ingestionSourcesReturnsConfiguredSources() {
-		graphQlTester()
+		GraphQlSecurityTestSupport.withReadKey(graphQlTester)
 				.document("""
 						query {
 						  ingestionSources
@@ -47,12 +44,12 @@ class IngestionGraphQlIntegrationTest {
 				.execute()
 				.path("ingestionSources")
 				.entityList(String.class)
-				.contains("qld-police-offences", "nsw-bocsar-incidents", "vic-csa-offences");
+				.contains("sa-police-crime-statistics", "wa-police-crime-statistics");
 	}
 
 	@Test
 	void ingestingUnknownSourceReturnsGraphQlError() {
-		graphQlTester()
+		GraphQlSecurityTestSupport.withIngestKey(graphQlTester)
 				.document("""
 						mutation {
 						  ingestCrimeData(source: "does-not-exist") {

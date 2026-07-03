@@ -30,6 +30,17 @@ public class CrimeIncident {
 	@Id
 	private String id;
 
+	private RecordGranularity granularity;
+
+	private GeocodeStatus geocodeStatus;
+
+	private Integer offenceCount;
+
+	@Size(max = 20)
+	private String reportingPeriod;
+
+	private SaOffenderContext offenderContext;
+
 	/** Identifier of the data source this incident was ingested from (e.g. "qld-police-offences"). */
 	@Size(max = 100)
 	private String source;
@@ -46,14 +57,14 @@ public class CrimeIncident {
 	private String description;
 
 	@NotNull
-	@Indexed
+	@Indexed(name = "crime_type_idx")
 	private CrimeType crimeType;
 
 	@NotNull
 	private CrimeSeverity severity;
 
 	@NotNull
-	@Indexed
+	@Indexed(name = "status_idx")
 	private CrimeStatus status;
 
 	@NotNull
@@ -61,13 +72,13 @@ public class CrimeIncident {
 	private Location location;
 
 	/** GeoJSON copy of location coordinates, indexed for near/within queries. */
-	@GeoSpatialIndexed(type = GeoSpatialIndexType.GEO_2DSPHERE)
+	@GeoSpatialIndexed(type = GeoSpatialIndexType.GEO_2DSPHERE, name = "geo_coordinates_2dsphere_idx")
 	@Field("geo_coordinates")
 	private GeoJsonPoint geoCoordinates;
 
 	/** When the crime occurred. */
 	@NotNull
-	@Indexed
+	@Indexed(name = "occurred_at_idx")
 	private Instant occurredAt;
 
 	/** When the crime was reported to the service. */

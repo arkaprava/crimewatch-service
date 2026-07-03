@@ -1,16 +1,21 @@
 package com.example.springgraphqlmongo.service;
 
+import com.example.springgraphqlmongo.cache.CrimeReadCacheEvictor;
 import com.example.springgraphqlmongo.config.IngestionProperties;
 import com.example.springgraphqlmongo.domain.CrimeIncident;
 import com.example.springgraphqlmongo.domain.CrimeSeverity;
 import com.example.springgraphqlmongo.domain.CrimeStatus;
 import com.example.springgraphqlmongo.domain.CrimeType;
+import com.example.springgraphqlmongo.domain.GeocodeStatus;
 import com.example.springgraphqlmongo.domain.Location;
+import com.example.springgraphqlmongo.domain.RecordGranularity;
 import com.example.springgraphqlmongo.exception.ResourceNotFoundException;
 import com.example.springgraphqlmongo.ingestion.CrimeDataSource;
 import com.example.springgraphqlmongo.ingestion.CrimeDataSourceRegistry;
 import com.example.springgraphqlmongo.ingestion.CrimeRecord;
 import com.example.springgraphqlmongo.ingestion.IngestionResult;
+import com.example.springgraphqlmongo.ingestion.source.SaCrimeStatisticsDataSource;
+import com.example.springgraphqlmongo.ingestion.source.WaCrimeStatisticsDataSource;
 import com.example.springgraphqlmongo.repository.CrimeIncidentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,12 +29,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Ingests crime records from all registered Australian {@link CrimeDataSource}s,
- * normalises them into {@link CrimeIncident} documents and persists new ones.
- * Records already present (same source + external id) are skipped, so runs are
- * idempotent and safe to schedule.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -74,8 +73,13 @@ public class CrimeIngestionService {
 
 	private final IngestionProperties ingestionProperties;
 
-	/** Ingest every enabled source, continuing past per-source failures. */
+	private final CrimeReadCacheEvictor crimeReadCacheEvictor;
+
 	public List<IngestionResult> ingestAll() {
+		return ingestAll(false);
+	}
+
+	public List<IngestionResult> ingestAll(boolean refresh) {
 		if (!ingestionProperties.isEnabled()) {
 			log.info("Ingestion is disabled; skipping run");
 			return List.of();
@@ -86,23 +90,32 @@ public class CrimeIngestionService {
 				log.debug("Skipping disabled source {}", source.name());
 				continue;
 			}
-			results.add(ingestSource(source));
+			results.add(ingestSource(source, refresh));
 		}
 		return results;
 	}
 
-	/** Ingest a single source by name, regardless of its enabled flag. */
 	public IngestionResult ingest(String sourceName) {
+		return ingest(sourceName, false);
+	}
+
+	public IngestionResult ingest(String sourceName, boolean refresh) {
 		CrimeDataSource source = dataSourceRegistry.findByName(sourceName)
 				.orElseThrow(() -> new ResourceNotFoundException("Unknown ingestion source: " + sourceName));
-		return ingestSource(source);
+		return ingestSource(source, refresh);
 	}
 
 	public List<String> sourceNames() {
 		return dataSourceRegistry.getAll().stream().map(CrimeDataSource::name).toList();
 	}
 
-	private IngestionResult ingestSource(CrimeDataSource source) {
+	private IngestionResult ingestSource(CrimeDataSource source, boolean refresh) {
+		if (source instanceof SaCrimeStatisticsDataSource saSource) {
+			saSource.setRefresh(refresh);
+		}
+		if (source instanceof WaCrimeStatisticsDataSource waSource) {
+			waSource.setRefresh(refresh);
+		}
 		log.info("Ingesting crime data from source {}", source.name());
 		List<CrimeRecord> records;
 		try {
@@ -133,6 +146,9 @@ public class CrimeIngestionService {
 		}
 		log.info("Source {}: fetched={} inserted={} duplicates={} failed={}", source.name(), records.size(),
 				inserted, duplicates, failed);
+		if (inserted > 0) {
+			crimeReadCacheEvictor.evictAll();
+		}
 		return new IngestionResult(source.name(), records.size(), inserted, duplicates, failed, null);
 	}
 
@@ -140,6 +156,10 @@ public class CrimeIngestionService {
 		CrimeType crimeType = classify(record);
 		GeoJsonPoint point = toPoint(record);
 		Instant now = Instant.now();
+		RecordGranularity granularity = record.granularity() != null ? record.granularity()
+				: RecordGranularity.INCIDENT;
+		GeocodeStatus geocodeStatus = record.geocodeStatus() != null ? record.geocodeStatus()
+				: (point != null ? GeocodeStatus.RESOLVED : GeocodeStatus.UNRESOLVED);
 
 		return CrimeIncident.builder()
 				.source(sourceName)
@@ -149,12 +169,19 @@ public class CrimeIngestionService {
 				.crimeType(crimeType)
 				.severity(DEFAULT_SEVERITY.getOrDefault(crimeType, CrimeSeverity.LOW))
 				.status(CrimeStatus.REPORTED)
+				.granularity(granularity)
+				.geocodeStatus(geocodeStatus)
+				.offenceCount(record.offenceCount())
+				.reportingPeriod(record.reportingPeriod())
+				.offenderContext(record.offenderContext())
 				.location(Location.builder()
 						.city(record.suburb() != null ? record.suburb() : "Unknown")
 						.state(record.state())
 						.country("Australia")
 						.postalCode(record.postalCode())
+						.suburbId(record.suburbId())
 						.coordinates(point)
+						.boundary(record.boundary())
 						.build())
 				.geoCoordinates(point)
 				.occurredAt(record.occurredAt())

@@ -2,11 +2,35 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/crime_info_service}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   graphql:
     graphiql:
       enabled: false
+    schema:
+      introspection:
+        enabled: false
 
 management:
   endpoint:
     health:
       show-details: when_authorized
+
+security:
+  api-keys:
+    read-keys:
+      - ${CRIME_READ_API_KEY}
+    ingest-keys:
+      - ${CRIME_INGEST_API_KEY}
+  rate-limit:
+    read:
+      requests-per-minute: ${RATE_LIMIT_READ_PER_MINUTE:120}
+    ingest:
+      requests-per-minute: ${RATE_LIMIT_INGEST_PER_MINUTE:20}
+    anonymous:
+      requests-per-minute: ${RATE_LIMIT_ANONYMOUS_PER_MINUTE:30}
+
+cache:
+  crime:
+    backend: redis

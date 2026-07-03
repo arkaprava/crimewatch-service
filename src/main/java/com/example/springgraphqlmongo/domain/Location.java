@@ -35,6 +35,13 @@ public class Location {
 	@Size(max = 20)
 	private String postalCode;
 
+	/** Reference to {@link AustralianSuburb#getId()}. */
+	@Size(max = 100)
+	private String suburbId;
+
 	private GeoJsonPoint coordinates;
+
+	/** Denormalised suburb boundary for spatial queries without a join. */
+	private org.springframework.data.mongodb.core.geo.GeoJsonPolygon boundary;
 
 }

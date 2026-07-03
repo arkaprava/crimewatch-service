@@ -6,6 +6,7 @@ import com.example.springgraphqlmongo.domain.CrimeStatus;
 import com.example.springgraphqlmongo.domain.CrimeType;
 import com.example.springgraphqlmongo.domain.Location;
 import com.example.springgraphqlmongo.repository.CrimeIncidentRepository;
+import com.example.springgraphqlmongo.support.GraphQlSecurityTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,7 +82,7 @@ class CrimeIncidentGraphQlIntegrationTest {
 	}
 
 	private HttpGraphQlTester graphQlTester() {
-		return graphQlTester;
+		return GraphQlSecurityTestSupport.withReadKey(graphQlTester);
 	}
 
 	@Test
@@ -155,6 +156,51 @@ class CrimeIncidentGraphQlIntegrationTest {
 				.path("crimesNearLocation")
 				.entityList(Object.class)
 				.hasSize(2);
+	}
+
+	@Test
+	void paginatesIncidentsWithLimitAndOffset() {
+		graphQlTester()
+				.document("""
+						query {
+						  crimeIncidents(state: "NSW", limit: 1, offset: 0) {
+						    title
+						  }
+						}
+						""")
+				.execute()
+				.path("crimeIncidents")
+				.entityList(Object.class)
+				.hasSize(1);
+
+		graphQlTester()
+				.document("""
+						query {
+						  crimeIncidents(state: "NSW", limit: 1, offset: 1) {
+						    title
+						  }
+						}
+						""")
+				.execute()
+				.path("crimeIncidents")
+				.entityList(Object.class)
+				.hasSize(1);
+	}
+
+	@Test
+	void rejectsInvalidPagination() {
+		graphQlTester()
+				.document("""
+						query {
+						  crimeIncidents(limit: 0) {
+						    title
+						  }
+						}
+						""")
+				.execute()
+				.errors()
+				.expect(error -> error.getMessage().contains("limit must be positive"))
+				.verify();
 	}
 
 	@Test

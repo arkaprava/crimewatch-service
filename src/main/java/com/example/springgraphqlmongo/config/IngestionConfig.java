@@ -2,7 +2,16 @@ package com.example.springgraphqlmongo.config;
 
 import com.example.springgraphqlmongo.ingestion.CrimeDataSource;
 import com.example.springgraphqlmongo.ingestion.CrimeDataSourceRegistry;
+import com.example.springgraphqlmongo.ingestion.cache.SaDatasetCacheService;
+import com.example.springgraphqlmongo.ingestion.cache.WaDatasetCacheService;
+import com.example.springgraphqlmongo.ingestion.geocode.AustralianSuburbGeocoder;
+import com.example.springgraphqlmongo.ingestion.geocode.WaGeographyResolver;
+import com.example.springgraphqlmongo.ingestion.offence.OffenceCategoryNormaliser;
+import com.example.springgraphqlmongo.ingestion.period.ReportingPeriodResolver;
 import com.example.springgraphqlmongo.ingestion.source.CkanCrimeDataSource;
+import com.example.springgraphqlmongo.ingestion.source.SaCrimeStatisticsDataSource;
+import com.example.springgraphqlmongo.ingestion.source.SaOffenderReferenceLoader;
+import com.example.springgraphqlmongo.ingestion.source.WaCrimeStatisticsDataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -18,16 +27,28 @@ import java.util.List;
 @EnableConfigurationProperties(IngestionProperties.class)
 public class IngestionConfig {
 
-	/**
-	 * Combines configuration-driven CKAN sources with any custom
-	 * {@link CrimeDataSource} beans contributed elsewhere in the application.
-	 */
 	@Bean
 	public CrimeDataSourceRegistry crimeDataSourceRegistry(IngestionProperties properties,
-			RestClient.Builder restClientBuilder, ObjectProvider<CrimeDataSource> customSources) {
+			RestClient.Builder restClientBuilder, ObjectProvider<CrimeDataSource> customSources,
+			SaDatasetCacheService cacheService, SaOffenderReferenceLoader offenderReferenceLoader,
+			WaDatasetCacheService waCacheService, AustralianSuburbGeocoder suburbGeocoder,
+			WaGeographyResolver waGeographyResolver, OffenceCategoryNormaliser offenceCategoryNormaliser,
+			ReportingPeriodResolver reportingPeriodResolver) {
 		List<CrimeDataSource> sources = new ArrayList<>();
-		properties.getSources()
-				.forEach(config -> sources.add(new CkanCrimeDataSource(config, restClientBuilder)));
+		properties.getSources().forEach(config -> {
+			String type = config.getType() != null ? config.getType() : "ckan";
+			if ("sa-crime-statistics".equalsIgnoreCase(type)) {
+				sources.add(new SaCrimeStatisticsDataSource(config, properties, cacheService,
+						offenderReferenceLoader, suburbGeocoder, offenceCategoryNormaliser));
+			}
+			else if ("wa-crime-statistics".equalsIgnoreCase(type)) {
+				sources.add(new WaCrimeStatisticsDataSource(config, waCacheService, waGeographyResolver,
+						offenceCategoryNormaliser, reportingPeriodResolver));
+			}
+			else {
+				sources.add(new CkanCrimeDataSource(config, restClientBuilder));
+			}
+		});
 		customSources.forEach(sources::add);
 		return new CrimeDataSourceRegistry(sources);
 	}

@@ -12,6 +12,12 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       MONGODB_URI: mongodb://mongodb:27017/crime_info_service
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CRIME_READ_API_KEY: ${CRIME_READ_API_KEY:-change-me-read}
+      CRIME_INGEST_API_KEY: ${CRIME_INGEST_API_KEY:-change-me-ingest}
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy

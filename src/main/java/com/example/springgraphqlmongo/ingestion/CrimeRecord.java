@@ -1,23 +1,19 @@
 package com.example.springgraphqlmongo.ingestion;
 
+import com.example.springgraphqlmongo.domain.GeocodeStatus;
+import com.example.springgraphqlmongo.domain.RecordGranularity;
+import com.example.springgraphqlmongo.domain.SaOffenderContext;
+import lombok.Builder;
+import org.springframework.data.mongodb.core.geo.GeoJsonPolygon;
+
 import java.time.Instant;
 
 /**
  * Source-agnostic representation of a crime record produced by a
  * {@link CrimeDataSource}. The ingestion service maps this onto the
  * {@code CrimeIncident} document, classifying type and severity.
- *
- * @param externalId  stable identifier of the record within its source
- * @param title       short summary, e.g. offence name
- * @param description free-text detail, may be null
- * @param category    raw offence category as published by the source
- * @param occurredAt  when the offence occurred
- * @param suburb      suburb / locality, may be null
- * @param state       Australian state or territory code, e.g. "NSW"
- * @param postalCode  postcode, may be null
- * @param latitude    WGS84 latitude, may be null
- * @param longitude   WGS84 longitude, may be null
  */
+@Builder
 public record CrimeRecord(
 		String externalId,
 		String title,
@@ -28,5 +24,19 @@ public record CrimeRecord(
 		String state,
 		String postalCode,
 		Double latitude,
-		Double longitude) {
+		Double longitude,
+		Integer offenceCount,
+		String reportingPeriod,
+		RecordGranularity granularity,
+		GeocodeStatus geocodeStatus,
+		String suburbId,
+		GeoJsonPolygon boundary,
+		SaOffenderContext offenderContext) {
+
+	public CrimeRecord {
+		if (granularity == null) {
+			granularity = RecordGranularity.INCIDENT;
+		}
+	}
+
 }

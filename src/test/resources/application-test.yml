@@ -1,9 +1,56 @@
-spring:
-  graphql:
-    graphiql:
-      enabled: false
+ingestion:
+  suburbs:
+    cache-file: data/suburbs/australian-suburbs.geojson
+  sa:
+    cache-dir: data/sa
+  wa:
+    cache-dir: data/wa
+    districts-file: data/wa/wa-police-districts.geojson
+    csv-fallback-filename: crime-timeseries.csv
+  sources:
+    - name: sa-police-crime-statistics
+      enabled: true
+      type: sa-crime-statistics
+      package-id: 860126f7-eeb5-4fbc-be44-069aa0467d11
+      state: SA
+      zone-id: Australia/Adelaide
+      batch-size: 5000
+      resource-names:
+        - "Crime Statistics 2024-25"
+      fields:
+        suburb: Suburb
+        title: Offence Description
+        category: Offence Division
+        offence-count: Count
+        reporting-period: Financial Year
+    - name: wa-police-crime-statistics
+      enabled: true
+      type: wa-crime-statistics
+      state: WA
+      zone-id: Australia/Perth
+      batch-size: 10000
+      fields:
+        geography-level: Geography Level
+        suburb: Location
+        title: Offence Description
+        category: Offence Group
+        offence-count: Count
+        reporting-period: Period
 
-management:
-  endpoint:
-    health:
-      show-details: always
+security:
+  api-keys:
+    read-keys:
+      - test-read-key
+    ingest-keys:
+      - test-ingest-key
+  rate-limit:
+    read:
+      requests-per-minute: 10000
+    ingest:
+      requests-per-minute: 10000
+    anonymous:
+      requests-per-minute: 10000
+
+cache:
+  crime:
+    backend: caffeine

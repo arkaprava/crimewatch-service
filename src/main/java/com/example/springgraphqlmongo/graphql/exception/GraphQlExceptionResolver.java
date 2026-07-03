@@ -7,6 +7,7 @@ import graphql.schema.DataFetchingEnvironment;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter;
 import org.springframework.graphql.execution.ErrorType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -30,6 +31,20 @@ public class GraphQlExceptionResolver extends DataFetcherExceptionResolverAdapte
 			return GraphqlErrorBuilder.newError(env)
 					.errorType(ErrorType.BAD_REQUEST)
 					.message(message)
+					.build();
+		}
+
+		if (ex instanceof IllegalArgumentException illegalArgument) {
+			return GraphqlErrorBuilder.newError(env)
+					.errorType(ErrorType.BAD_REQUEST)
+					.message(illegalArgument.getMessage())
+					.build();
+		}
+
+		if (ex instanceof AccessDeniedException accessDenied) {
+			return GraphqlErrorBuilder.newError(env)
+					.errorType(ErrorType.FORBIDDEN)
+					.message(accessDenied.getMessage())
 					.build();
 		}
 

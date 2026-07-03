@@ -10,3 +10,62 @@ management:
   endpoint:
     health:
       show-details: always
+
+security:
+  api-keys:
+    read-keys:
+      - dev-read-key
+    ingest-keys:
+      - dev-ingest-key
+  rate-limit:
+    read:
+      requests-per-minute: 300
+    ingest:
+      requests-per-minute: 60
+
+ingestion:
+  suburbs:
+    cache-file: data/suburbs/australian-suburbs.geojson
+  sources:
+    - name: qld-police-offences
+      enabled: true
+      type: ckan
+      base-url: https://www.data.qld.gov.au
+      resource-id: 9f7a7eed-bfba-44ba-8288-812f6cc26115
+      state: QLD
+      zone-id: Australia/Brisbane
+      batch-size: 500
+      fields:
+        id: _id
+        title: District
+        category: District
+        occurred-at: "Month Year"
+        suburb: District
+    - name: sa-police-crime-statistics
+      enabled: true
+      type: sa-crime-statistics
+      package-id: 860126f7-eeb5-4fbc-be44-069aa0467d11
+      state: SA
+      zone-id: Australia/Adelaide
+      batch-size: 5000
+      resource-names:
+        - "Crime Statistics 2024-25"
+      fields:
+        suburb: Suburb
+        title: Offence Description
+        category: Offence Division
+        offence-count: Count
+        reporting-period: Financial Year
+    - name: wa-police-crime-statistics
+      enabled: true
+      type: wa-crime-statistics
+      state: WA
+      zone-id: Australia/Perth
+      batch-size: 10000
+      fields:
+        geography-level: Geography Level
+        suburb: Location
+        title: Offence Description
+        category: Offence Group
+        offence-count: Count
+        reporting-period: Period

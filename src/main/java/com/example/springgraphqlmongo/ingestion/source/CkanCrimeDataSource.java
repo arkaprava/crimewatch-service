@@ -91,17 +91,18 @@ public class CkanCrimeDataSource implements CrimeDataSource {
 
 		String title = text(row, fields.getTitle());
 		String category = text(row, fields.getCategory());
-		return new CrimeRecord(
-				externalId,
-				title != null ? title : category,
-				text(row, fields.getDescription()),
-				category,
-				occurredAt,
-				text(row, fields.getSuburb()),
-				config.getState(),
-				text(row, fields.getPostalCode()),
-				doubleValue(row, fields.getLatitude()),
-				doubleValue(row, fields.getLongitude()));
+		return CrimeRecord.builder()
+				.externalId(externalId)
+				.title(title != null ? title : category)
+				.description(text(row, fields.getDescription()))
+				.category(category)
+				.occurredAt(occurredAt)
+				.suburb(text(row, fields.getSuburb()))
+				.state(config.getState())
+				.postalCode(text(row, fields.getPostalCode()))
+				.latitude(doubleValue(row, fields.getLatitude()))
+				.longitude(doubleValue(row, fields.getLongitude()))
+				.build();
 	}
 
 	private String text(JsonNode row, String column) {

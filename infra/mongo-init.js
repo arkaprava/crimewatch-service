@@ -15,6 +15,18 @@ const validator = {
 			externalId: { bsonType: ["string", "null"], maxLength: 255 },
 			title: { bsonType: "string", minLength: 1, maxLength: 255 },
 			description: { bsonType: ["string", "null"], maxLength: 2000 },
+			granularity: { enum: ["INCIDENT", "SUBURB_AGGREGATE", null] },
+			geocodeStatus: { enum: ["RESOLVED", "UNRESOLVED", "APPROXIMATE", null] },
+			offenceCount: { bsonType: ["int", "long", "null"] },
+			reportingPeriod: { bsonType: ["string", "null"], maxLength: 20 },
+			offenderContext: {
+				bsonType: ["object", "null"],
+				properties: {
+					offenderCount: { bsonType: ["int", "long", "null"] },
+					principalOffence: { bsonType: ["string", "null"], maxLength: 255 },
+					correlationNote: { bsonType: ["string", "null"], maxLength: 500 }
+				}
+			},
 			crimeType: {
 				enum: ["THEFT", "BURGLARY", "ROBBERY", "ASSAULT", "HOMICIDE", "KIDNAPPING",
 					"VANDALISM", "FRAUD", "CYBERCRIME", "DRUG_OFFENSE", "ARSON", "OTHER"]
@@ -31,7 +43,8 @@ const validator = {
 					city: { bsonType: "string", minLength: 1, maxLength: 100 },
 					state: { bsonType: ["string", "null"], maxLength: 100 },
 					country: { bsonType: "string", minLength: 1, maxLength: 100 },
-					postalCode: { bsonType: ["string", "null"], maxLength: 20 }
+					postalCode: { bsonType: ["string", "null"], maxLength: 20 },
+					suburbId: { bsonType: ["string", "null"], maxLength: 100 }
 				}
 			},
 			occurredAt: { bsonType: "date" },
@@ -57,6 +70,17 @@ incidents.createIndex({ crimeType: 1 }, { name: "crime_type_idx" });
 incidents.createIndex({ status: 1 }, { name: "status_idx" });
 incidents.createIndex({ occurredAt: 1 }, { name: "occurred_at_idx" });
 incidents.createIndex({ geo_coordinates: "2dsphere" }, { name: "geo_coordinates_2dsphere_idx" });
+incidents.createIndex({ "location.suburbId": 1 }, { name: "location_suburb_id_idx" });
+
+if (!db.getCollectionNames().includes("australian_suburbs")) {
+	db.createCollection("australian_suburbs");
+}
+const suburbs = db.getCollection("australian_suburbs");
+suburbs.createIndex({ state: 1, name: 1 }, { name: "state_name_idx", unique: true });
+suburbs.createIndex({ aliases: 1 }, { name: "aliases_idx" });
+suburbs.createIndex({ centroid: "2dsphere" }, { name: "suburb_centroid_2dsphere_idx" });
+suburbs.createIndex({ perimeter: "2dsphere" }, { name: "suburb_perimeter_2dsphere_idx" });
 
 print("Indexes:");
-incidents.getIndexes().forEach(idx => print("  " + idx.name));
+incidents.getIndexes().forEach(idx => print("  crime_incidents." + idx.name));
+suburbs.getIndexes().forEach(idx => print("  australian_suburbs." + idx.name));

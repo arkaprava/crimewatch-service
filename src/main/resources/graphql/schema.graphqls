@@ -28,6 +28,19 @@ enum CrimeStatus {
   UNSOLVED
 }
 
+enum RecordGranularity {
+  INCIDENT
+  SUBURB_AGGREGATE
+  DISTRICT_AGGREGATE
+  STATE_AGGREGATE
+}
+
+enum GeocodeStatus {
+  RESOLVED
+  UNRESOLVED
+  APPROXIMATE
+}
+
 type Coordinates {
   latitude: Float!
   longitude: Float!
@@ -42,6 +55,20 @@ type Location {
   coordinates: Coordinates
 }
 
+type SaOffenderContext {
+  offenderCount: Int
+  principalOffence: String
+  correlationNote: String
+}
+
+type SuburbBoundary {
+  suburbId: String
+  name: String!
+  state: String
+  centroid: Coordinates
+  perimeter: [[Coordinates!]!]!
+}
+
 type CrimeIncident {
   id: ID!
   source: String
@@ -52,6 +79,12 @@ type CrimeIncident {
   severity: CrimeSeverity!
   status: CrimeStatus!
   location: Location!
+  granularity: RecordGranularity
+  offenceCount: Int
+  reportingPeriod: String
+  geocodeStatus: GeocodeStatus
+  suburbBoundary: SuburbBoundary
+  offenderContext: SaOffenderContext
   "When the crime occurred, ISO-8601."
   occurredAt: String!
   "When the crime was reported to this service, ISO-8601."
@@ -71,13 +104,26 @@ type Query {
   "Single incident by id."
   crimeIncident(id: ID!): CrimeIncident
   "Incidents filtered by location and/or classification; all filters optional."
-  crimeIncidents(city: String, state: String, crimeType: CrimeType, status: CrimeStatus): [CrimeIncident!]!
+  crimeIncidents(
+    city: String
+    state: String
+    source: String
+    crimeType: CrimeType
+    status: CrimeStatus
+    limit: Int = 50
+    offset: Int = 0
+  ): [CrimeIncident!]!
   "Incidents within radiusKm of a point, nearest first."
-  crimesNearLocation(latitude: Float!, longitude: Float!, radiusKm: Float! = 10.0): [CrimeIncident!]!
+  crimesNearLocation(
+    latitude: Float!
+    longitude: Float!
+    radiusKm: Float! = 10.0
+    state: String
+  ): [CrimeIncident!]!
   ingestionSources: [String!]!
 }
 
 type Mutation {
   "Trigger ingestion for one source, or every enabled source when omitted."
-  ingestCrimeData(source: String): [IngestionResult!]!
+  ingestCrimeData(source: String, refresh: Boolean): [IngestionResult!]!
 }

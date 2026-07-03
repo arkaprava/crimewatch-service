@@ -28,6 +28,31 @@ info:
     name: crime-info-service
     version: 0.0.1-SNAPSHOT
 
+# API key auth for GraphQL and actuator (except health). Set keys per profile or env.
+security:
+  api-keys:
+    enabled: true
+    read-keys: []
+    ingest-keys: []
+  rate-limit:
+    enabled: true
+    limit-health-checks: false
+    read:
+      requests-per-minute: 120
+    ingest:
+      requests-per-minute: 20
+    anonymous:
+      requests-per-minute: 30
+
+# In-process read cache for GraphQL query results (Caffeine by default; Redis in prod).
+cache:
+  crime:
+    backend: caffeine
+    maximum-size: 1000
+    near-location-ttl: 10m
+    search-ttl: 15m
+    by-id-ttl: 5m
+
 # Australian crime data ingestion. Sources are CKAN open data portals; set the
 # real datastore resource ids and enable per source. Trigger manually via the
 # ingestCrimeData GraphQL mutation or enable the schedule below.
@@ -36,6 +61,24 @@ ingestion:
   schedule:
     enabled: false
     cron: "0 0 3 * * *"
+  sa:
+    cache-dir: data/sa
+    cache-ttl: P7D
+    base-url: https://data.sa.gov.au/data
+    refresh-on-ingest: false
+    package-ids:
+      crime-statistics: 860126f7-eeb5-4fbc-be44-069aa0467d11
+      offenders: 8afe3e7c-9ed5-4e30-83a6-e8cc60e11f02
+  wa:
+    cache-dir: data/wa
+    cache-ttl: P7D
+    districts-file: data/wa/wa-police-districts.geojson
+    csv-fallback-filename: crime-timeseries.csv
+  suburbs:
+    cache-file: data/suburbs/australian-suburbs.geojson
+    cache-ttl: P365D
+    fuzzy-match-threshold: 0.85
+    load-on-startup: true
   sources:
     - name: qld-police-offences
       enabled: false
@@ -84,33 +127,33 @@ ingestion:
         suburb: suburb_town_name
         postal-code: postcode
     - name: sa-police-crime-statistics
-      enabled: false
-      base-url: https://data.sa.gov.au
-      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      enabled: true
+      type: sa-crime-statistics
+      package-id: 860126f7-eeb5-4fbc-be44-069aa0467d11
       state: SA
       zone-id: Australia/Adelaide
-      batch-size: 500
+      batch-size: 5000
+      resource-names:
+        - "Crime Statistics 2024-25"
       fields:
-        id: _id
-        title: offence_level_3_description
-        category: offence_level_1_description
-        occurred-at: reported_date
-        suburb: suburb_incident
-        postal-code: postcode_incident
+        suburb: Suburb
+        title: Offence Description
+        category: Offence Division
+        offence-count: Count
+        reporting-period: Financial Year
     - name: wa-police-crime-statistics
-      enabled: false
-      base-url: https://catalogue.data.wa.gov.au
-      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      enabled: true
+      type: wa-crime-statistics
       state: WA
       zone-id: Australia/Perth
-      batch-size: 500
+      batch-size: 10000
       fields:
-        id: _id
-        title: offence
-        category: offence_category
-        occurred-at: period
-        suburb: locality
-        postal-code: postcode
+        geography-level: Geography Level
+        suburb: Location
+        title: Offence Description
+        category: Offence Group
+        offence-count: Count
+        reporting-period: Period
     - name: tas-dpfem-offences
       enabled: false
       # Tasmania publishes DPFEM crime data through the national portal.

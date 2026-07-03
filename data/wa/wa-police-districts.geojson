@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type": "Feature", "properties": {"name": "Fremantle District", "state": "WA", "centroid": [115.755, -32.056]}, "geometry": {"type": "Point", "coordinates": [115.755, -32.056]}},
+    {"type": "Feature", "properties": {"name": "Perth District", "state": "WA", "centroid": [115.861, -31.952]}, "geometry": {"type": "Point", "coordinates": [115.861, -31.952]}},
+    {"type": "Feature", "properties": {"name": "South West District", "state": "WA", "centroid": [115.860, -33.327]}, "geometry": {"type": "Point", "coordinates": [115.860, -33.327]}},
+    {"type": "Feature", "properties": {"name": "Goldfields-Esperance District", "state": "WA", "centroid": [121.466, -30.748]}, "geometry": {"type": "Point", "coordinates": [121.466, -30.748]}},
+    {"type": "Feature", "properties": {"name": "Kimberley District", "state": "WA", "centroid": [122.231, -17.961]}, "geometry": {"type": "Point", "coordinates": [122.231, -17.961]}},
+    {"type": "Feature", "properties": {"name": "Pilbara District", "state": "WA", "centroid": [118.610, -20.725]}, "geometry": {"type": "Point", "coordinates": [118.610, -20.725]}},
+    {"type": "Feature", "properties": {"name": "Mid West-Gascoyne District", "state": "WA", "centroid": [114.610, -28.777]}, "geometry": {"type": "Point", "coordinates": [114.610, -28.777]}},
+    {"type": "Feature", "properties": {"name": "Great Southern District", "state": "WA", "centroid": [117.883, -34.961]}, "geometry": {"type": "Point", "coordinates": [117.883, -34.961]}},
+    {"type": "Feature", "properties": {"name": "Wheatbelt District", "state": "WA", "centroid": [117.150, -31.950]}, "geometry": {"type": "Point", "coordinates": [117.150, -31.950]}},
+    {"type": "Feature", "properties": {"name": "Armadale District", "state": "WA", "centroid": [116.009, -32.153]}, "geometry": {"type": "Point", "coordinates": [116.009, -32.153]}},
+    {"type": "Feature", "properties": {"name": "Joondalup District", "state": "WA", "centroid": [115.766, -31.745]}, "geometry": {"type": "Point", "coordinates": [115.766, -31.745]}},
+    {"type": "Feature", "properties": {"name": "Mandurah District", "state": "WA", "centroid": [115.722, -32.527]}, "geometry": {"type": "Point", "coordinates": [115.722, -32.527]}},
+    {"type": "Feature", "properties": {"name": "Midland District", "state": "WA", "centroid": [116.009, -31.887]}, "geometry": {"type": "Point", "coordinates": [116.009, -31.887]}},
+    {"type": "Feature", "properties": {"name": "Wanneroo District", "state": "WA", "centroid": [115.804, -31.747]}, "geometry": {"type": "Point", "coordinates": [115.804, -31.747]}},
+    {"type": "Feature", "properties": {"name": "Canning District", "state": "WA", "centroid": [115.918, -32.041]}, "geometry": {"type": "Point", "coordinates": [115.918, -32.041]}}
+  ]
+}
