@@ -18,12 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CacheRedisSerializerFactoryTest {
 
-	private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-
-	private final RedisSerializer<Object> serializer = CacheRedisSerializerFactory.createValueSerializer(objectMapper);
-
 	@Test
 	void roundTripsCrimeIncidentGraph() {
+		RedisSerializer<Object> serializer = CacheRedisSerializerFactory
+				.createValueSerializer(new ObjectMapper().findAndRegisterModules());
 		GeoJsonPoint point = new GeoJsonPoint(new Point(151.2069, -33.8732));
 		CrimeIncident incident = CrimeIncident.builder()
 				.id("incident-1")
