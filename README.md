@@ -12,25 +12,28 @@ There are no REST controllers for crime data.
 - Java 21
 - Spring Boot 3.4
 - Spring Data MongoDB
+- Spring Data Redis (distributed read cache in `prod`)
 - Spring for GraphQL
 - Spring Security (API key authentication)
-- Caffeine (in-process read cache)
-- Apache POI (SA offender spreadsheets)
+- Caffeine (in-process read cache in `dev`)
+- Apache POI (SA offender spreadsheets; WA crime timeseries)
 - Gradle (Groovy DSL)
 - Testcontainers
 
 ## Prerequisites
 
 - JDK 21
-- Docker (for MongoDB and integration tests)
+- Docker (for MongoDB, Redis, and integration tests)
 
 ## Quick start
 
-1. Start MongoDB:
+1. Start MongoDB and Redis:
 
 ```bash
 docker compose -f infra/docker-compose-mongo.yml up -d
 ```
+
+This starts `crime-info-mongodb` (port 27017) and `crime-info-redis` (port 6379).
 
 2. Run the application:
 
@@ -291,7 +294,7 @@ mutation {
 }
 ```
 
-Force re-download of SA cached files:
+Force re-download of cached dataset files (SA, WA, or NSW):
 
 ```graphql
 mutation {
@@ -306,8 +309,8 @@ mutation {
 
 | Type | Notes |
 |------|-------|
-| `CrimeIncident` | Common record stored in `crime_incidents`; supports both incident-level (QLD) and suburb-aggregate (SA) data |
-| `RecordGranularity` | `INCIDENT` or `SUBURB_AGGREGATE` |
+| `CrimeIncident` | Common record stored in `crime_incidents`; supports incident-level (QLD) and aggregate data (SA, WA, NSW) |
+| `RecordGranularity` | `INCIDENT`, `SUBURB_AGGREGATE`, `DISTRICT_AGGREGATE`, or `STATE_AGGREGATE` |
 | `GeocodeStatus` | `RESOLVED`, `UNRESOLVED`, or `APPROXIMATE` |
 | `SaOffenderContext` | State-level offender correlation attached to SA aggregate records |
 | `SuburbBoundary` | Denormalised suburb name, centroid, and perimeter polygon |
@@ -333,12 +336,14 @@ Sources are configured under `ingestion.sources` in
 
 ### Source types
 
-| `type` | Adapter | Portal | Status |
-|--------|---------|--------|--------|
+| `type` | Adapter | Data source | Status |
+|--------|---------|-------------|--------|
 | `ckan` (default) | `CkanCrimeDataSource` | CKAN `datastore_search` API | QLD configured in `dev`; others need `resource-id` |
-| `sa-crime-statistics` | `SaCrimeStatisticsDataSource` | [data.sa.gov.au](https://data.sa.gov.au/data/dataset/crime-statistics) CSV cache | Enabled by default |
+| `sa-crime-statistics` | `SaCrimeStatisticsDataSource` | [data.sa.gov.au](https://data.sa.gov.au/data/dataset/crime-statistics) CSV cache | Enabled in `dev` |
+| `wa-crime-statistics` | `WaCrimeStatisticsDataSource` | [WA Police Force crime timeseries](https://www.police.wa.gov.au/Crime/CrimeStatistics) XLSX/CSV cache | Enabled in `dev` |
+| `nsw-bocsar-statistics` | `NswBocsarStatisticsDataSource` | [BOCSAR SuburbData.zip](https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip) | Enabled in `dev` |
 
-### CKAN sources (QLD, NSW, VIC, WA, TAS, NT, ACT)
+### CKAN sources (QLD, VIC, TAS, NT, ACT)
 
 Set the dataset's datastore `resource-id` and `enabled: true` for each source.
 The `dev` profile enables QLD police-district statistics:
@@ -380,8 +385,73 @@ data/
       manifest-crime-statistics-2024-25.csv.json
     recorded-crime-offenders/
       recorded-crime-offenders.csv
+  wa/
+    crime-statistics/
+      WA-Police-Force-Crime-Timeseries.xlsx
+      crime-timeseries.csv          # local fallback fixture
+    wa-police-districts.geojson
+  nsw/
+    crime-statistics/
+      suburb-data.csv               # extracted from SuburbData.zip
+      suburb-data-fixture.csv       # local fallback fixture
   suburbs/
     australian-suburbs.geojson
+```
+
+### Western Australia (cache-first)
+
+WA crime statistics are ingested as aggregate records from the WA Police Force
+crime timeseries spreadsheet. Files are cached under `data/wa/` with a 7-day TTL;
+a CSV fallback fixture is used when downloads fail.
+
+District-level rows are resolved against `data/wa/wa-police-districts.geojson`;
+suburb-level rows are geocoded via the Australian suburb cache.
+
+```yaml
+- name: wa-police-crime-statistics
+  enabled: true
+  type: wa-crime-statistics
+  state: WA
+  batch-size: 10000
+```
+
+### New South Wales — BOCSAR (cache-first)
+
+NSW data comes from BOCSAR's quarterly [SuburbData.zip](https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip)
+open dataset (monthly offence counts by suburb from 1995). The adapter downloads
+the ZIP, extracts the wide-format CSV, unpivots month columns into
+`SUBURB_AGGREGATE` records, and geocodes suburbs.
+
+The interactive [BOCSAR Crime Mapping Tool](https://crimetool.bocsar.nsw.gov.au/bocsar)
+is for exploration only — it does not expose a public bulk API. Use the open ZIP
+files for programmatic ingestion.
+
+```yaml
+- name: nsw-bocsar-statistics
+  enabled: true
+  type: nsw-bocsar-statistics
+  state: NSW
+  batch-size: 5000
+  fields:
+    suburb: Suburb
+    title: Subcategory
+    category: Offence category
+```
+
+First ingestion downloads ~680 KB ZIP and extracts a large CSV; allow time for
+the initial run. Pass `refresh: true` to force a re-download.
+
+```graphql
+mutation {
+  ingestCrimeData(source: "nsw-bocsar-statistics", refresh: true) {
+    source
+    fetched
+    inserted
+    duplicates
+    failed
+    error
+  }
+}
 ```
 
 ### Scheduled ingestion
@@ -391,8 +461,12 @@ default `0 0 3 * * *`).
 
 ## Read cache
 
-GraphQL read queries are cached in-process with Caffeine. Caches are evicted
-automatically after ingestion completes.
+GraphQL read queries are cached and evicted automatically after ingestion completes.
+
+| Profile | Backend | Configuration |
+|---------|---------|---------------|
+| `dev` (default) | Caffeine (in-process) | `cache.crime.backend: caffeine` |
+| `prod` | Redis | `cache.crime.backend: redis` — requires Redis (included in Docker Compose) |
 
 | Cache | Backed method | Default TTL |
 |-------|---------------|-------------|
@@ -401,13 +475,14 @@ automatically after ingestion completes.
 | `crimes-near` | `crimesNearLocation` | 10 min |
 
 Configure via `cache.crime.*` in [`application.yml`](src/main/resources/application.yml).
+In `prod`, set `REDIS_HOST` and `REDIS_PORT` (see [Environment variables](#environment-variables)).
 
 ## Profiles
 
 | Profile | Purpose |
 |---------|---------|
-| `dev` (default) | Local development; GraphiQL enabled; dev API keys; QLD + SA sources enabled |
-| `prod` | Production; `MONGODB_URI` and API key env vars; GraphiQL and introspection disabled |
+| `dev` (default) | Local development; GraphiQL enabled; dev API keys; QLD, SA, WA, and NSW sources enabled; Caffeine cache |
+| `prod` | Production; `MONGODB_URI`, Redis, and API key env vars; GraphiQL and introspection disabled; Redis cache |
 | `test` | Integration tests; fixed test API keys; SA source only |
 
 Run with a specific profile:
@@ -418,7 +493,7 @@ Run with a specific profile:
 
 ## Docker deployment
 
-Build the war and run the full stack (MongoDB + application):
+Build the war and run the full stack (MongoDB, Redis, and application):
 
 ```bash
 ./gradlew bootWar
@@ -426,7 +501,7 @@ docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml
 ```
 
 The application image is built from [`infra/Dockerfile`](infra/Dockerfile) and
-runs on port 8080 with the `prod` profile.
+runs on port 8080 with the `prod` profile (Redis-backed cache).
 
 Initialize MongoDB indexes and validators:
 
@@ -443,16 +518,32 @@ docker exec -i crime-info-mongodb mongosh --quiet < infra/mongo-init.js
 Integration tests use Testcontainers and require Docker. When Docker is not
 available, those tests are skipped automatically.
 
+## Continuous integration
+
+Pushes trigger [`.github/workflows/ci.yml`](.github/workflows/ci.yml), which runs
+`./gradlew test` on JDK 21 (Temurin).
+
+## Local development tools
+
+Poll the MongoDB dataset in the terminal (requires `crime-info-mongodb` running):
+
+```bash
+./infra/watch-mongo-dataset.sh
+```
+
+Optional: `INTERVAL=3 LIMIT=100 ./infra/watch-mongo-dataset.sh`
+
 ## Project structure
 
 ```
-data/                  # SA dataset cache and suburb GeoJSON
-infra/                 # Dockerfile, docker-compose, mongo-init.js
+data/                  # SA, WA, and NSW dataset caches; suburb GeoJSON
+infra/                 # Dockerfile, docker-compose, mongo-init.js, watch script
+.github/workflows/     # CI pipeline
 src/main/java/com/example/springgraphqlmongo/
-├── cache/             # Caffeine read-cache key generation and eviction
+├── cache/             # Read-cache key generation and eviction
 ├── config/            # Ingestion, cache, security, and scheduling configuration
 ├── domain/            # MongoDB @Document entities
-├── ingestion/         # Data source adapters, SA cache, geocoding
+├── ingestion/         # Data source adapters, dataset caches, geocoding
 ├── repository/        # Spring Data repositories
 ├── security/          # API key filter and role-based authorization
 ├── service/           # Business logic (ingestion + read queries)
@@ -465,6 +556,8 @@ src/main/java/com/example/springgraphqlmongo/
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MONGODB_URI` | MongoDB connection string (`prod` profile) | `mongodb://localhost:27017/crime_info_service` |
+| `REDIS_HOST` | Redis host for distributed read cache (`prod` profile) | `localhost` |
+| `REDIS_PORT` | Redis port (`prod` profile) | `6379` |
 | `CRIME_READ_API_KEY` | API key for GraphQL queries (`prod` profile) | — |
 | `CRIME_INGEST_API_KEY` | API key for `ingestCrimeData` mutation (`prod` profile) | — |
 | `RATE_LIMIT_READ_PER_MINUTE` | Read-tier rate limit (`prod` profile) | `120` |
