@@ -74,6 +74,12 @@ ingestion:
     cache-ttl: P7D
     districts-file: data/wa/wa-police-districts.geojson
     csv-fallback-filename: crime-timeseries.csv
+  nsw:
+    cache-dir: data/nsw
+    cache-ttl: P90D
+    suburb-data-zip-url: https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip
+    suburb-data-csv-filename: suburb-data.csv
+    csv-fallback-filename: suburb-data-fixture.csv
   suburbs:
     cache-file: data/suburbs/australian-suburbs.geojson
     cache-ttl: P365D
@@ -96,22 +102,16 @@ ingestion:
         postal-code: postcode
         latitude: latitude
         longitude: longitude
-    - name: nsw-bocsar-incidents
+    - name: nsw-bocsar-statistics
       enabled: false
-      base-url: https://data.nsw.gov.au
-      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      type: nsw-bocsar-statistics
       state: NSW
       zone-id: Australia/Sydney
-      batch-size: 500
+      batch-size: 10000
       fields:
-        id: _id
-        title: offence_type
-        category: offence_category
-        occurred-at: incident_date
-        suburb: suburb
-        postal-code: postcode
-        latitude: bcsr_latitude
-        longitude: bcsr_longitude
+        suburb: Suburb
+        title: Subcategory
+        category: Offence category
     - name: vic-csa-offences
       enabled: false
       base-url: https://discover.data.vic.gov.au

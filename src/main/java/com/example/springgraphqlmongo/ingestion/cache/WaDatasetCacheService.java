@@ -82,7 +82,7 @@ public class WaDatasetCacheService {
 				return false;
 			}
 			if (manifest.getSha256() != null) {
-				String localHash = SaDatasetCacheService.sha256(Files.newInputStream(dataFile));
+				String localHash = SaDatasetCacheService.sha256(dataFile);
 				return manifest.getSha256().equalsIgnoreCase(localHash);
 			}
 			return true;

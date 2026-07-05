@@ -69,3 +69,13 @@ ingestion:
         category: Offence Group
         offence-count: Count
         reporting-period: Period
+    - name: nsw-bocsar-statistics
+      enabled: true
+      type: nsw-bocsar-statistics
+      state: NSW
+      zone-id: Australia/Sydney
+      batch-size: 5000
+      fields:
+        suburb: Suburb
+        title: Subcategory
+        category: Offence category

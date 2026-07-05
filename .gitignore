@@ -33,3 +33,6 @@ out/
 
 ### Environment ###
 .env
+
+### Local debugging artifacts ###
+.tmp-*

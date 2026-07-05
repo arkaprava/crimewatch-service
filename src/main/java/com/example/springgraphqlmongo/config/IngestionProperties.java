@@ -26,6 +26,8 @@ public class IngestionProperties {
 
 	private WaSettings wa = new WaSettings();
 
+	private NswSettings nsw = new NswSettings();
+
 	private SuburbSettings suburbs = new SuburbSettings();
 
 	private List<Source> sources = new ArrayList<>();
@@ -81,6 +83,23 @@ public class IngestionProperties {
 	}
 
 	@Data
+	public static class NswSettings {
+
+		private String cacheDir = "data/nsw";
+
+		private Duration cacheTtl = Duration.ofDays(90);
+
+		private String downloadUserAgent = "crime-info-service/1.0";
+
+		private String suburbDataZipUrl = "https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip";
+
+		private String suburbDataCsvFilename = "suburb-data.csv";
+
+		private String csvFallbackFilename = "suburb-data-fixture.csv";
+
+	}
+
+	@Data
 	public static class SuburbSettings {
 
 		private String cacheFile = "data/suburbs/australian-suburbs.geojson";
@@ -100,7 +119,7 @@ public class IngestionProperties {
 
 		private boolean enabled = false;
 
-		/** ckan | sa-crime-statistics | wa-crime-statistics */
+		/** ckan | sa-crime-statistics | wa-crime-statistics | nsw-bocsar-statistics */
 		private String type = "ckan";
 
 		/** Portal root, e.g. https://www.data.qld.gov.au */

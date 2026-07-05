@@ -124,7 +124,7 @@ public class SaDatasetCacheService {
 		}
 
 		if (manifest.getSha256() != null) {
-			String localHash = sha256(Files.newInputStream(dataFile));
+			String localHash = sha256(dataFile);
 			if (!manifest.getSha256().equalsIgnoreCase(localHash)) {
 				log.debug("Local file checksum mismatch for {}", dataFile);
 				return false;
@@ -234,6 +234,12 @@ public class SaDatasetCacheService {
 		}
 		catch (NoSuchAlgorithmException ex) {
 			throw new IllegalStateException(ex);
+		}
+	}
+
+	public static String sha256(Path file) throws IOException {
+		try (InputStream input = Files.newInputStream(file)) {
+			return sha256(input);
 		}
 	}
 
