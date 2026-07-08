@@ -37,13 +37,13 @@ class WaDatasetCacheServiceTest {
 	@Test
 	void detectsValidCsvDataset() {
 		byte[] bytes = "Geography Level,Location,Count\nDistrict,Fremantle,1\n".getBytes();
-		assertThat(WaDatasetCacheService.looksLikeDataset(bytes)).isTrue();
+		assertThat(DatasetFileValidator.looksLikeDataset(bytes)).isTrue();
 	}
 
 	@Test
 	void rejectsHtmlDownload() {
 		byte[] bytes = "<!DOCTYPE html><html><body>error</body></html>".getBytes();
-		assertThat(WaDatasetCacheService.looksLikeDataset(bytes)).isFalse();
+		assertThat(DatasetFileValidator.looksLikeDataset(bytes)).isFalse();
 	}
 
 	@Test

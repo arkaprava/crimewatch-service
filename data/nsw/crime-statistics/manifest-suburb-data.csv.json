@@ -1,0 +1,11 @@
+{
+  "resourceName" : "suburb-data.csv",
+  "resourceId" : null,
+  "downloadUrl" : "https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip",
+  "resourceHash" : null,
+  "resourceLastModified" : null,
+  "revisionId" : null,
+  "etag" : null,
+  "sha256" : "f1683b6d7a8ed47fe9e959a2a82744792afc5574b0b3010bba25b01a1011a79f",
+  "lastFetched" : "2026-07-05T13:30:00.019679Z"
+}

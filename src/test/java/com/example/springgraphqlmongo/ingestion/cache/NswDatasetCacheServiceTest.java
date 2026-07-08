@@ -40,12 +40,16 @@ class NswDatasetCacheServiceTest {
 	}
 
 	@Test
-	void extractsCsvFromZipArchive() throws Exception {
+	void archivesExtractedCsvFromZip() throws Exception {
 		byte[] zipBytes = zipWithCsv("SuburbData.csv",
 				"\"Suburb\",\"Offence category\",\"Subcategory\",\"Jan 2024\"\n\"Parramatta\",\"Assault\",\"Murder *\",\"1\"\n");
-		Path target = tempDir.resolve("suburb-data.csv");
-		NswDatasetCacheService.extractFirstCsv(zipBytes, target);
-		assertThat(Files.readString(target)).contains("Parramatta");
+		Path datasetPath = tempDir.resolve("crime-statistics").resolve("suburb-data.csv");
+		Files.createDirectories(datasetPath.getParent());
+		DatasetTarArchive.writeCsvArchive(NswDatasetCacheService.readFirstCsvBytes(zipBytes),
+				datasetPath.getFileName().toString(), datasetPath);
+		try (var reader = DatasetTarArchive.openCsvReader(datasetPath)) {
+			assertThat(reader.readLine()).contains("Suburb");
+		}
 	}
 
 	@Test

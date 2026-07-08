@@ -11,6 +11,8 @@ public interface CrimeIncidentRepository extends MongoRepository<CrimeIncident, 
 
 	boolean existsBySourceAndExternalId(String source, String externalId);
 
+	long countBySource(String source);
+
 	List<CrimeIncident> findByCrimeType(CrimeType crimeType);
 
 	List<CrimeIncident> findByStatus(CrimeStatus status);

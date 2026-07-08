@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type": "Feature", "properties": {"name": "Tasmania", "level": "state", "state": "TAS", "centroid": [146.75, -42.0]}, "geometry": {"type": "Point", "coordinates": [146.75, -42.0]}},
+    {"type": "Feature", "properties": {"name": "SOUTH", "level": "district", "state": "TAS", "centroid": [147.33, -42.88]}, "geometry": {"type": "Point", "coordinates": [147.33, -42.88]}},
+    {"type": "Feature", "properties": {"name": "NORTH", "level": "district", "state": "TAS", "centroid": [147.14, -41.44]}, "geometry": {"type": "Point", "coordinates": [147.14, -41.44]}},
+    {"type": "Feature", "properties": {"name": "WEST", "level": "district", "state": "TAS", "centroid": [145.90, -41.05]}, "geometry": {"type": "Point", "coordinates": [145.90, -41.05]}},
+    {"type": "Feature", "properties": {"name": "HOBART", "level": "division", "state": "TAS", "centroid": [147.327, -42.882]}, "geometry": {"type": "Point", "coordinates": [147.327, -42.882]}},
+    {"type": "Feature", "properties": {"name": "GLENORCHY", "level": "division", "state": "TAS", "centroid": [147.276, -42.833]}, "geometry": {"type": "Point", "coordinates": [147.276, -42.833]}},
+    {"type": "Feature", "properties": {"name": "KINGSTON", "level": "division", "state": "TAS", "centroid": [147.308, -42.974]}, "geometry": {"type": "Point", "coordinates": [147.308, -42.974]}},
+    {"type": "Feature", "properties": {"name": "BRIDGEWATER", "level": "division", "state": "TAS", "centroid": [147.237, -42.735]}, "geometry": {"type": "Point", "coordinates": [147.237, -42.735]}},
+    {"type": "Feature", "properties": {"name": "CLARENCE", "level": "division", "state": "TAS", "centroid": [147.512, -42.875]}, "geometry": {"type": "Point", "coordinates": [147.512, -42.875]}},
+    {"type": "Feature", "properties": {"name": "EAST COAST", "level": "division", "state": "TAS", "centroid": [148.291, -41.917]}, "geometry": {"type": "Point", "coordinates": [148.291, -41.917]}},
+    {"type": "Feature", "properties": {"name": "LAUNCESTON", "level": "division", "state": "TAS", "centroid": [147.144, -41.433]}, "geometry": {"type": "Point", "coordinates": [147.144, -41.433]}},
+    {"type": "Feature", "properties": {"name": "ST HELENS", "level": "division", "state": "TAS", "centroid": [148.233, -41.317]}, "geometry": {"type": "Point", "coordinates": [148.233, -41.317]}},
+    {"type": "Feature", "properties": {"name": "NORTH-EAST", "level": "division", "state": "TAS", "centroid": [147.493, -41.043]}, "geometry": {"type": "Point", "coordinates": [147.493, -41.043]}},
+    {"type": "Feature", "properties": {"name": "CENTRAL NORTH", "level": "division", "state": "TAS", "centroid": [147.218, -41.551]}, "geometry": {"type": "Point", "coordinates": [147.218, -41.551]}},
+    {"type": "Feature", "properties": {"name": "BURNIE", "level": "division", "state": "TAS", "centroid": [145.903, -41.052]}, "geometry": {"type": "Point", "coordinates": [145.903, -41.052]}},
+    {"type": "Feature", "properties": {"name": "DEVONPORT", "level": "division", "state": "TAS", "centroid": [146.345, -41.175]}, "geometry": {"type": "Point", "coordinates": [146.345, -41.175]}},
+    {"type": "Feature", "properties": {"name": "CENTRAL WEST", "level": "division", "state": "TAS", "centroid": [145.592, -42.075]}, "geometry": {"type": "Point", "coordinates": [145.592, -42.075]}}
+  ]
+}

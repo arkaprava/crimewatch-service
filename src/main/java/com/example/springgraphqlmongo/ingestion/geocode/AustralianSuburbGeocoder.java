@@ -83,11 +83,30 @@ public class AustralianSuburbGeocoder {
 	}
 
 	static String normalise(String value) {
-		return value.trim()
-				.replaceAll("(?i)\\s*\\(?(SA|NSW|VIC|QLD|WA|TAS|NT|ACT)\\)?\\s*$", "")
-				.replaceAll("[^a-zA-Z0-9\\s]", " ")
+		String trimmed = stripStateSuffix(value.trim());
+		return trimmed.replaceAll("[^a-zA-Z0-9\\s]", " ")
 				.replaceAll("\\s+", " ")
+				.trim()
 				.toUpperCase(Locale.ROOT);
+	}
+
+	private static String stripStateSuffix(String value) {
+		String upper = value.toUpperCase(Locale.ROOT);
+		for (String state : List.of("NSW", "VIC", "QLD", "TAS", "ACT", "SA", "NT", "WA")) {
+			String spaced = " " + state;
+			String parenthesised = " (" + state + ")";
+			String compactParenthesised = "(" + state + ")";
+			if (upper.endsWith(parenthesised)) {
+				return value.substring(0, value.length() - parenthesised.length()).trim();
+			}
+			if (upper.endsWith(compactParenthesised)) {
+				return value.substring(0, value.length() - compactParenthesised.length()).trim();
+			}
+			if (upper.endsWith(spaced)) {
+				return value.substring(0, value.length() - spaced.length()).trim();
+			}
+		}
+		return value;
 	}
 
 	private record ScoredSuburb(AustralianSuburb suburb, double score) {

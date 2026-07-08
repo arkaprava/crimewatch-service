@@ -103,7 +103,7 @@ public class WaDatasetCacheService {
 		if (bytes == null || bytes.length == 0) {
 			throw new IngestionException("Empty WA download from " + downloadUrl);
 		}
-		if (!looksLikeDataset(bytes)) {
+		if (!DatasetFileValidator.looksLikeDataset(bytes)) {
 			throw new IngestionException("WA download from " + downloadUrl + " returned non-dataset content");
 		}
 		Files.createDirectories(dataFile.getParent());
@@ -118,32 +118,8 @@ public class WaDatasetCacheService {
 		log.info("Cached WA resource {} ({} bytes) at {}", resourceName, bytes.length, dataFile);
 	}
 
-	static boolean looksLikeDataset(byte[] bytes) {
-		if (bytes.length < 4) {
-			return false;
-		}
-		if (bytes[0] == 'P' && bytes[1] == 'K') {
-			return true;
-		}
-		String prefix = new String(bytes, 0, Math.min(bytes.length, 200));
-		return !prefix.stripLeading().startsWith("<!DOCTYPE") && !prefix.stripLeading().startsWith("<html")
-				&& (prefix.contains(",") || prefix.contains("Geography") || prefix.contains("Location"));
-	}
-
 	static boolean isReadableDataset(Path file) {
-		try {
-			byte[] prefix = Files.readAllBytes(file);
-			if (prefix.length == 0) {
-				return false;
-			}
-			if (file.getFileName().toString().endsWith(".csv")) {
-				return looksLikeDataset(prefix);
-			}
-			return looksLikeDataset(prefix);
-		}
-		catch (IOException ex) {
-			return false;
-		}
+		return DatasetFileValidator.isReadableDataset(file);
 	}
 
 }

@@ -28,9 +28,14 @@ public class IngestionProperties {
 
 	private NswSettings nsw = new NswSettings();
 
+	private TasSettings tas = new TasSettings();
+
 	private SuburbSettings suburbs = new SuburbSettings();
 
 	private List<Source> sources = new ArrayList<>();
+
+	/** When true, ingest enabled sources on startup if they have no records yet. */
+	private boolean loadOnStartup = true;
 
 	@Data
 	public static class Schedule {
@@ -100,6 +105,25 @@ public class IngestionProperties {
 	}
 
 	@Data
+	public static class TasSettings {
+
+		private String cacheDir = "data/tas";
+
+		private Duration cacheTtl = Duration.ofDays(30);
+
+		private String downloadUserAgent = "Mozilla/5.0 (compatible; crime-info-service/1.0)";
+
+		private String performancePageUrl = "https://www.police.tas.gov.au/about-us/our-performance/";
+
+		private String supplementPdfUrl;
+
+		private String corporatePerformancePdfUrl;
+
+		private String geographyFile = "data/tas/tas-police-geography.geojson";
+
+	}
+
+	@Data
 	public static class SuburbSettings {
 
 		private String cacheFile = "data/suburbs/australian-suburbs.geojson";
@@ -119,7 +143,7 @@ public class IngestionProperties {
 
 		private boolean enabled = false;
 
-		/** ckan | sa-crime-statistics | wa-crime-statistics | nsw-bocsar-statistics */
+		/** ckan | sa-crime-statistics | wa-crime-statistics | nsw-bocsar-statistics | tas-crime-statistics-supplement | tas-corporate-performance */
 		private String type = "ckan";
 
 		/** Portal root, e.g. https://www.data.qld.gov.au */

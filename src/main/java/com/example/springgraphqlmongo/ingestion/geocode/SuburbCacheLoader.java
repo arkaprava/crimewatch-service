@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.geo.Point;
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 import org.springframework.data.mongodb.core.geo.GeoJsonPolygon;
@@ -34,6 +36,7 @@ public class SuburbCacheLoader {
 	private final ObjectMapper objectMapper;
 
 	@EventListener(ApplicationReadyEvent.class)
+	@Order(Ordered.HIGHEST_PRECEDENCE)
 	public void loadOnStartup() {
 		if (!properties.getSuburbs().isLoadOnStartup()) {
 			return;

@@ -12,7 +12,6 @@ import org.springframework.web.client.RestClient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -35,13 +34,13 @@ public class NswDatasetCacheService {
 		Path dataFile = cacheDir.resolve(filename);
 		Path manifestFile = cacheDir.resolve("manifest-" + filename + ".json");
 
-		if (!refresh && Files.exists(dataFile) && isCacheFresh(dataFile, manifestFile)) {
-			log.debug("Using cached NSW suburb crime data at {}", dataFile);
+		if (!refresh && DatasetTarArchive.exists(dataFile) && isCacheFresh(dataFile, manifestFile)) {
+			log.debug("Using cached NSW suburb crime data at {}", DatasetTarArchive.resolveArchive(dataFile).orElse(dataFile));
 			return dataFile;
 		}
 
 		try {
-			downloadAndExtract(nsw.getSuburbDataZipUrl(), dataFile, manifestFile, filename);
+			downloadAndArchive(nsw.getSuburbDataZipUrl(), dataFile, manifestFile, filename);
 			if (isReadableDataset(dataFile)) {
 				return dataFile;
 			}
@@ -55,7 +54,7 @@ public class NswDatasetCacheService {
 			log.info("Using NSW CSV fallback at {}", csvFallback);
 			return csvFallback;
 		}
-		if (Files.exists(dataFile) && isReadableDataset(dataFile)) {
+		if (DatasetTarArchive.exists(dataFile) && isReadableDataset(dataFile)) {
 			log.warn("NSW download failed; using existing cache at {}", dataFile);
 			return dataFile;
 		}
@@ -80,7 +79,7 @@ public class NswDatasetCacheService {
 				return false;
 			}
 			if (manifest.getSha256() != null) {
-				String localHash = SaDatasetCacheService.sha256(dataFile);
+				String localHash = DatasetTarArchive.sha256(dataFile);
 				return manifest.getSha256().equalsIgnoreCase(localHash);
 			}
 			return true;
@@ -90,7 +89,7 @@ public class NswDatasetCacheService {
 		}
 	}
 
-	private void downloadAndExtract(String downloadUrl, Path dataFile, Path manifestFile, String resourceName)
+	private void downloadAndArchive(String downloadUrl, Path dataFile, Path manifestFile, String resourceName)
 			throws IOException {
 		RestClient client = restClientBuilder.build();
 		byte[] bytes = client.get()
@@ -106,29 +105,34 @@ public class NswDatasetCacheService {
 		}
 
 		Files.createDirectories(dataFile.getParent());
-		extractFirstCsv(bytes, dataFile);
+		byte[] csvBytes = readFirstCsvBytes(bytes);
+		DatasetTarArchive.writeCsvArchive(csvBytes, dataFile.getFileName().toString(), dataFile);
 
 		CacheManifest manifest = new CacheManifest();
 		manifest.setResourceName(resourceName);
 		manifest.setDownloadUrl(downloadUrl);
-		manifest.setSha256(SaDatasetCacheService.sha256(Files.readAllBytes(dataFile)));
+		manifest.setSha256(DatasetTarArchive.sha256(dataFile));
 		manifest.setLastFetched(Instant.now());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(manifestFile.toFile(), manifest);
-		log.info("Cached NSW resource {} ({} bytes) at {}", resourceName, Files.size(dataFile), dataFile);
+		Path storedAt = DatasetTarArchive.resolveArchive(dataFile).orElse(dataFile);
+		log.info("Cached NSW resource {} as tar archive at {}", resourceName, storedAt);
 	}
 
-	static void extractFirstCsv(byte[] zipBytes, Path targetCsv) throws IOException {
+	static byte[] readFirstCsvBytes(byte[] zipBytes) throws IOException {
 		try (ZipInputStream zipInputStream = new ZipInputStream(new java.io.ByteArrayInputStream(zipBytes))) {
 			ZipEntry entry;
 			while ((entry = zipInputStream.getNextEntry()) != null) {
 				if (entry.isDirectory() || !entry.getName().toLowerCase().endsWith(".csv")) {
 					continue;
 				}
-				Files.copy(zipInputStream, targetCsv, StandardCopyOption.REPLACE_EXISTING);
-				return;
+				return zipInputStream.readAllBytes();
 			}
 		}
 		throw new IngestionException("No CSV file found in NSW suburb data ZIP");
+	}
+
+	static void extractFirstCsv(byte[] zipBytes, Path targetCsv) throws IOException {
+		Files.write(targetCsv, readFirstCsvBytes(zipBytes));
 	}
 
 	static boolean looksLikeZip(byte[] bytes) {
@@ -145,7 +149,7 @@ public class NswDatasetCacheService {
 
 	static boolean isReadableDataset(Path file) {
 		try {
-			byte[] prefix = Files.readAllBytes(file);
+			byte[] prefix = DatasetTarArchive.readCsvPrefix(file, 4096);
 			return prefix.length > 0 && looksLikeDataset(prefix);
 		}
 		catch (IOException ex) {

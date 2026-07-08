@@ -56,6 +56,7 @@ ingestion:
         category: Offence Division
         offence-count: Count
         reporting-period: Financial Year
+        date-format: dd/MM/yyyy
     - name: wa-police-crime-statistics
       enabled: true
       type: wa-crime-statistics
@@ -79,3 +80,15 @@ ingestion:
         suburb: Suburb
         title: Subcategory
         category: Offence category
+    - name: tas-dpfem-crime-statistics
+      enabled: true
+      type: tas-crime-statistics-supplement
+      state: TAS
+      zone-id: Australia/Hobart
+      batch-size: 5000
+    - name: tas-corporate-performance
+      enabled: true
+      type: tas-corporate-performance
+      state: TAS
+      zone-id: Australia/Hobart
+      batch-size: 5000

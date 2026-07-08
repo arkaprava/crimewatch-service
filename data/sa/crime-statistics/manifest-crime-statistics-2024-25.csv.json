@@ -1,8 +1,11 @@
 {
-  "resourceName": "Crime Statistics 2024-25",
-  "resourceHash": "fixture",
-  "resourceLastModified": "2026-05-28T00:00:00Z",
-  "downloadUrl": "file://fixture",
-  "sha256": "33c761ddfa9e5da5b4fae706b8908a38f5bf6eac6687c2603e96328792b7bcb3",
-  "lastFetched": "2026-07-03T12:00:00Z"
+  "resourceName" : "Crime Statistics 2024-25",
+  "resourceId" : "4a553fc6-71fe-4dac-8096-c29abc269c76",
+  "downloadUrl" : "https://data.sa.gov.au/data/dataset/860126f7-eeb5-4fbc-be44-069aa0467d11/resource/4a553fc6-71fe-4dac-8096-c29abc269c76/download/data_sa_crime_q1_q2_q3_q4_2024-25-publish.csv",
+  "resourceHash" : "ba256209a8ebee4025cab408233acb7a",
+  "resourceLastModified" : "2025-09-18T05:40:12.039410Z",
+  "revisionId" : null,
+  "etag" : null,
+  "sha256" : "9a642207c705374d7befa6e22a769c7237906ad8b2afe9ba2f5ce881a3bf6230",
+  "lastFetched" : "2026-07-05T13:20:53.566879Z"
 }

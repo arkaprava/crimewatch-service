@@ -16,6 +16,8 @@ import com.example.springgraphqlmongo.ingestion.CrimeRecord;
 import com.example.springgraphqlmongo.ingestion.IngestionResult;
 import com.example.springgraphqlmongo.ingestion.source.NswBocsarStatisticsDataSource;
 import com.example.springgraphqlmongo.ingestion.source.SaCrimeStatisticsDataSource;
+import com.example.springgraphqlmongo.ingestion.source.TasCorporatePerformanceDataSource;
+import com.example.springgraphqlmongo.ingestion.source.TasCrimeStatisticsSupplementDataSource;
 import com.example.springgraphqlmongo.ingestion.source.WaCrimeStatisticsDataSource;
 import com.example.springgraphqlmongo.repository.CrimeIncidentRepository;
 import lombok.RequiredArgsConstructor;
@@ -119,6 +121,12 @@ public class CrimeIngestionService {
 		}
 		if (source instanceof NswBocsarStatisticsDataSource nswSource) {
 			nswSource.setRefresh(refresh);
+		}
+		if (source instanceof TasCrimeStatisticsSupplementDataSource tasSupplementSource) {
+			tasSupplementSource.setRefresh(refresh);
+		}
+		if (source instanceof TasCorporatePerformanceDataSource tasCprSource) {
+			tasCprSource.setRefresh(refresh);
 		}
 		log.info("Ingesting crime data from source {}", source.name());
 		List<CrimeRecord> records;

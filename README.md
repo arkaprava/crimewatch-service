@@ -342,8 +342,10 @@ Sources are configured under `ingestion.sources` in
 | `sa-crime-statistics` | `SaCrimeStatisticsDataSource` | [data.sa.gov.au](https://data.sa.gov.au/data/dataset/crime-statistics) CSV cache | Enabled in `dev` |
 | `wa-crime-statistics` | `WaCrimeStatisticsDataSource` | [WA Police Force crime timeseries](https://www.police.wa.gov.au/Crime/CrimeStatistics) XLSX/CSV cache | Enabled in `dev` |
 | `nsw-bocsar-statistics` | `NswBocsarStatisticsDataSource` | [BOCSAR SuburbData.zip](https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip) | Enabled in `dev` |
+| `tas-crime-statistics-supplement` | `TasCrimeStatisticsSupplementDataSource` | [Tasmania Police Crime Statistics Supplement](https://www.police.tas.gov.au/about-us/our-performance/) PDF cache | Enabled in `dev` |
+| `tas-corporate-performance` | `TasCorporatePerformanceDataSource` | [Tasmania Police Corporate Performance Report](https://www.police.tas.gov.au/about-us/our-performance/) PDF cache | Enabled in `dev` |
 
-### CKAN sources (QLD, VIC, TAS, NT, ACT)
+### CKAN sources (QLD, VIC, NT, ACT)
 
 Set the dataset's datastore `resource-id` and `enabled: true` for each source.
 The `dev` profile enables QLD police-district statistics:
@@ -381,7 +383,7 @@ Suburb boundaries and centroids are loaded from
 data/
   sa/
     crime-statistics/
-      crime-statistics-2024-25.csv
+      crime-statistics-2024-25.csv.tar.gz
       manifest-crime-statistics-2024-25.csv.json
     recorded-crime-offenders/
       recorded-crime-offenders.csv
@@ -392,8 +394,17 @@ data/
     wa-police-districts.geojson
   nsw/
     crime-statistics/
-      suburb-data.csv               # extracted from SuburbData.zip
-      suburb-data-fixture.csv       # local fallback fixture
+      suburb-data.csv.tar.gz          # single gzip tar when <=50 MB
+      suburb-data.csv.tar.part001     # multipart uncompressed tar when >50 MB
+      suburb-data-fixture.csv         # local fallback fixture
+  tas/
+    crime-statistics/
+      dpfem-crime-statistics-supplement-2024-25.pdf
+      manifest-*.json
+    corporate-performance/
+      corporate-performance-report-march-2026.pdf
+      manifest-*.json
+    tas-police-geography.geojson
   suburbs/
     australian-suburbs.geojson
 ```
@@ -440,6 +451,49 @@ files for programmatic ingestion.
 
 First ingestion downloads ~680 KB ZIP and extracts a large CSV; allow time for
 the initial run. Pass `refresh: true` to force a re-download.
+
+### Tasmania — PDF cache-first
+
+Tasmania does not publish suburb-level crime CSVs. Two PDF sources are ingested:
+
+1. **Crime Statistics Supplement** (`tas-dpfem-crime-statistics`) — official annual
+   state-level offence categories and detailed offence types as `STATE_AGGREGATE`
+   records geocoded to the Tasmania state centroid.
+2. **Corporate Performance Report** (`tas-corporate-performance`) — monthly
+   district/division breakdowns (SOUTH/NORTH/WEST and divisions such as Hobart,
+   Launceston) as `DISTRICT_AGGREGATE` records. This is internal performance data
+   and may differ from official supplement figures.
+
+PDFs are cached under `data/tas/` with a 30-day TTL. Configure direct download URLs
+under `ingestion.tas` or rely on discovery from the
+[Tasmania Police performance page](https://www.police.tas.gov.au/about-us/our-performance/).
+
+District and division centroids are loaded from `data/tas/tas-police-geography.geojson`.
+There is no suburb-level TAS data; `crimesNearLocation` only surfaces TAS records
+near state or district centroids.
+
+```yaml
+- name: tas-dpfem-crime-statistics
+  enabled: true
+  type: tas-crime-statistics-supplement
+  state: TAS
+  zone-id: Australia/Hobart
+- name: tas-corporate-performance
+  enabled: true
+  type: tas-corporate-performance
+  state: TAS
+  zone-id: Australia/Hobart
+```
+
+```graphql
+mutation {
+  ingestCrimeData(source: "tas-dpfem-crime-statistics", refresh: true) {
+    source
+    fetched
+    inserted
+  }
+}
+```
 
 ```graphql
 mutation {

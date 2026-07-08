@@ -58,6 +58,7 @@ cache:
 # ingestCrimeData GraphQL mutation or enable the schedule below.
 ingestion:
   enabled: true
+  load-on-startup: true
   schedule:
     enabled: false
     cron: "0 0 3 * * *"
@@ -80,6 +81,13 @@ ingestion:
     suburb-data-zip-url: https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip
     suburb-data-csv-filename: suburb-data.csv
     csv-fallback-filename: suburb-data-fixture.csv
+  tas:
+    cache-dir: data/tas
+    cache-ttl: P30D
+    performance-page-url: https://www.police.tas.gov.au/about-us/our-performance/
+    supplement-pdf-url: https://www.police.tas.gov.au/uploads/DPFEM-Crime-Statistics-Supplement-2024-25.pdf
+    corporate-performance-pdf-url: https://www.police.tas.gov.au/uploads/Corporate-Performance-Report-March-2026.pdf
+    geography-file: data/tas/tas-police-geography.geojson
   suburbs:
     cache-file: data/suburbs/australian-suburbs.geojson
     cache-ttl: P365D
@@ -103,7 +111,7 @@ ingestion:
         latitude: latitude
         longitude: longitude
     - name: nsw-bocsar-statistics
-      enabled: false
+      enabled: true
       type: nsw-bocsar-statistics
       state: NSW
       zone-id: Australia/Sydney
@@ -154,21 +162,18 @@ ingestion:
         category: Offence Group
         offence-count: Count
         reporting-period: Period
-    - name: tas-dpfem-offences
-      enabled: false
-      # Tasmania publishes DPFEM crime data through the national portal.
-      base-url: https://data.gov.au
-      resource-id: "REPLACE_WITH_RESOURCE_ID"
+    - name: tas-dpfem-crime-statistics
+      enabled: true
+      type: tas-crime-statistics-supplement
       state: TAS
       zone-id: Australia/Hobart
-      batch-size: 500
-      fields:
-        id: _id
-        title: offence_type
-        category: offence_category
-        occurred-at: incident_date
-        suburb: suburb
-        postal-code: postcode
+      batch-size: 5000
+    - name: tas-corporate-performance
+      enabled: true
+      type: tas-corporate-performance
+      state: TAS
+      zone-id: Australia/Hobart
+      batch-size: 5000
     - name: nt-police-crime-statistics
       enabled: false
       base-url: https://data.nt.gov.au

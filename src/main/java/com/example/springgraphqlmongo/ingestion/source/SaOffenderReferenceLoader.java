@@ -2,6 +2,7 @@ package com.example.springgraphqlmongo.ingestion.source;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.cache.DatasetTarArchive;
 import com.example.springgraphqlmongo.ingestion.cache.SaDatasetCacheService;
 import com.example.springgraphqlmongo.ingestion.offence.OffenceCategoryNormaliser;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -52,7 +55,7 @@ public class SaOffenderReferenceLoader {
 
 	private Map<String, SaOffenderStats> parseCsv(Path file) throws IOException {
 		Map<String, SaOffenderStats> stats = new HashMap<>();
-		try (BufferedReader reader = Files.newBufferedReader(file)) {
+		try (BufferedReader reader = DatasetTarArchive.openCsvReader(file)) {
 			String headerLine = reader.readLine();
 			if (headerLine == null) {
 				return stats;
@@ -151,7 +154,30 @@ public class SaOffenderReferenceLoader {
 	}
 
 	static String[] parseCsvLine(String line) {
-		return line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
+		List<String> fields = new ArrayList<>();
+		StringBuilder current = new StringBuilder();
+		boolean inQuotes = false;
+		for (int i = 0; i < line.length(); i++) {
+			char character = line.charAt(i);
+			if (character == '"') {
+				if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+					current.append('"');
+					i++;
+				}
+				else {
+					inQuotes = !inQuotes;
+				}
+			}
+			else if (character == ',' && !inQuotes) {
+				fields.add(current.toString());
+				current.setLength(0);
+			}
+			else {
+				current.append(character);
+			}
+		}
+		fields.add(current.toString());
+		return fields.toArray(String[]::new);
 	}
 
 	private boolean isSpreadsheet(Path file) {

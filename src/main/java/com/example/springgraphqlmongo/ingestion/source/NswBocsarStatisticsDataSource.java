@@ -6,6 +6,7 @@ import com.example.springgraphqlmongo.domain.RecordGranularity;
 import com.example.springgraphqlmongo.ingestion.CrimeDataSource;
 import com.example.springgraphqlmongo.ingestion.CrimeRecord;
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.cache.DatasetTarArchive;
 import com.example.springgraphqlmongo.ingestion.cache.NswDatasetCacheService;
 import com.example.springgraphqlmongo.ingestion.geocode.AustralianSuburbGeocoder;
 import com.example.springgraphqlmongo.ingestion.geocode.SuburbMatch;
@@ -81,7 +82,7 @@ public class NswBocsarStatisticsDataSource implements CrimeDataSource {
 		ZoneId zone = ZoneId.of(config.getZoneId());
 		int batchLimit = config.getBatchSize() > 0 ? config.getBatchSize() : Integer.MAX_VALUE;
 
-		try (BufferedReader reader = Files.newBufferedReader(file)) {
+		try (BufferedReader reader = DatasetTarArchive.openCsvReader(file)) {
 			String headerLine = reader.readLine();
 			if (headerLine == null) {
 				return records;

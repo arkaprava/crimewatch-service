@@ -69,6 +69,14 @@ class AustralianSuburbGeocoderTest {
 		assertThat(match.status()).isEqualTo(GeocodeStatus.UNRESOLVED);
 	}
 
+	@Test
+	void normalisesStateSuffixWithoutRegexOverflow() {
+		assertThat(AustralianSuburbGeocoder.normalise("Glenelg (SA)")).isEqualTo("GLENELG");
+		assertThat(AustralianSuburbGeocoder.normalise("Fremantle WA")).isEqualTo("FREMANTLE");
+		org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+				() -> AustralianSuburbGeocoder.normalise("(".repeat(10000) + "Suburb (WA)"));
+	}
+
 	private AustralianSuburb suburb(String id, String name, String state) {
 		List<Point> ring = List.of(
 				new Point(138.58, -34.94),

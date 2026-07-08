@@ -7,6 +7,7 @@ import com.example.springgraphqlmongo.domain.SaOffenderContext;
 import com.example.springgraphqlmongo.ingestion.CrimeDataSource;
 import com.example.springgraphqlmongo.ingestion.CrimeRecord;
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.cache.DatasetTarArchive;
 import com.example.springgraphqlmongo.ingestion.cache.SaDatasetCacheService;
 import com.example.springgraphqlmongo.ingestion.geocode.AustralianSuburbGeocoder;
 import com.example.springgraphqlmongo.ingestion.geocode.SuburbMatch;
@@ -19,8 +20,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -94,7 +99,7 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 	private List<CrimeRecord> parseCrimeStatistics(Path file, Map<String, SaOffenderStats> offenderStats) {
 		IngestionProperties.FieldMapping fields = config.getFields();
 		List<CrimeRecord> records = new ArrayList<>();
-		try (BufferedReader reader = Files.newBufferedReader(file)) {
+		try (BufferedReader reader = DatasetTarArchive.openCsvReader(file)) {
 			String headerLine = reader.readLine();
 			if (headerLine == null) {
 				return records;
@@ -121,11 +126,13 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 
 	private CrimeRecord toRecord(IngestionProperties.FieldMapping fields, Map<String, Integer> columns,
 			String[] values, Map<String, SaOffenderStats> offenderStats) {
-		String suburb = columnValue(columns, values, fields.getSuburb());
-		String offence = columnValue(columns, values, fields.getTitle());
-		String category = columnValue(columns, values, fields.getCategory());
-		String period = columnValue(columns, values, fields.getReportingPeriod());
-		String countRaw = columnValue(columns, values, fields.getOffenceCount());
+		String suburb = firstColumn(columns, values, fields.getSuburb(), "Suburb - Incident", "Suburb");
+		String offence = firstColumn(columns, values, fields.getTitle(), "Offence Level 3 Description",
+				"Offence Description");
+		String category = firstColumn(columns, values, fields.getCategory(), "Offence Level 1 Description",
+				"Offence Division");
+		String period = firstColumn(columns, values, fields.getReportingPeriod(), "Financial Year", "Reported Date");
+		String countRaw = firstColumn(columns, values, fields.getOffenceCount(), "Offence count", "Count");
 		if (suburb == null || offence == null || period == null || countRaw == null) {
 			return null;
 		}
@@ -138,6 +145,11 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 			return null;
 		}
 		if (offenceCount <= 0) {
+			return null;
+		}
+
+		Instant occurredAt = resolveOccurredAt(period, fields.getDateFormat());
+		if (occurredAt == null) {
 			return null;
 		}
 
@@ -174,7 +186,7 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 				.title(normalisedOffence + " in " + canonicalSuburb)
 				.description("Aggregate: " + offenceCount + " offences reported in " + period)
 				.category(category != null ? category : offence)
-				.occurredAt(financialYearEnd(period))
+				.occurredAt(occurredAt)
 				.suburb(canonicalSuburb)
 				.state(config.getState())
 				.postalCode(suburbMatch.suburb() != null ? suburbMatch.suburb().getPostcode() : null)
@@ -193,7 +205,7 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 	private Instant financialYearEnd(String period) {
 		Matcher matcher = FINANCIAL_YEAR.matcher(period);
 		if (!matcher.matches()) {
-			return Instant.now();
+			return null;
 		}
 		int endYear = Integer.parseInt(matcher.group(2));
 		if (endYear < 100) {
@@ -201,6 +213,42 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 		}
 		ZoneId zone = ZoneId.of(config.getZoneId());
 		return ZonedDateTime.of(endYear, 6, 30, 12, 0, 0, 0, zone).toInstant();
+	}
+
+	private Instant resolveOccurredAt(String period, String dateFormat) {
+		Instant financialYear = financialYearEnd(period);
+		if (financialYear != null) {
+			return financialYear;
+		}
+		ZoneId zone = ZoneId.of(config.getZoneId());
+		try {
+			if (dateFormat != null && !dateFormat.isBlank()) {
+				DateTimeFormatter formatter = DateTimeFormatter.ofPattern(dateFormat);
+				try {
+					return LocalDate.parse(period, formatter).atStartOfDay(zone).toInstant();
+				}
+				catch (DateTimeParseException ex) {
+					return LocalDateTime.parse(period, formatter).atZone(zone).toInstant();
+				}
+			}
+			return LocalDate.parse(period, DateTimeFormatter.ofPattern("dd/MM/yyyy")).atStartOfDay(zone).toInstant();
+		}
+		catch (DateTimeParseException ex) {
+			return null;
+		}
+	}
+
+	private String firstColumn(Map<String, Integer> columns, String[] values, String... candidates) {
+		for (String candidate : candidates) {
+			if (candidate == null || candidate.isBlank()) {
+				continue;
+			}
+			String value = columnValue(columns, values, candidate);
+			if (value != null && !value.isBlank()) {
+				return value;
+			}
+		}
+		return null;
 	}
 
 	private String columnValue(Map<String, Integer> columns, String[] values, String column) {
@@ -228,7 +276,16 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 	}
 
 	static String slugify(String value) {
-		return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+		String slug = value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-");
+		int start = 0;
+		int end = slug.length();
+		while (start < end && slug.charAt(start) == '-') {
+			start++;
+		}
+		while (end > start && slug.charAt(end - 1) == '-') {
+			end--;
+		}
+		return slug.substring(start, end);
 	}
 
 }

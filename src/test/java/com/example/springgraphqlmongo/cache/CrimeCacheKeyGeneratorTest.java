@@ -52,8 +52,8 @@ class CrimeCacheKeyGeneratorTest {
 		Object keyA = keyGenerator.generate(null, searchMethod, null, "NSW", null, null, null, 10, 0);
 		Object keyB = keyGenerator.generate(null, searchMethod, null, "NSW", null, null, null, 10, 20);
 
-		assertThat(keyA).isEqualTo(":nsw:::null:null:10:0");
-		assertThat(keyB).isEqualTo(":nsw:::null:null:10:20");
+		assertThat(keyA).isEqualTo(":nsw::null:null:10:0");
+		assertThat(keyB).isEqualTo(":nsw::null:null:10:20");
 		assertThat(keyA).isNotEqualTo(keyB);
 	}
 

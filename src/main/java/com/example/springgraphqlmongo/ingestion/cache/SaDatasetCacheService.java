@@ -16,6 +16,9 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.HexFormat;
 import java.util.Optional;
 
@@ -53,8 +56,24 @@ public class SaDatasetCacheService {
 
 	public Path resolveOffenderFile(boolean refresh) {
 		String resourceName = "Recorded Crime - Offenders";
-		return resolveCachedFile("recorded-crime-offenders", resourceName, properties.getSa().getPackageIds()
-				.get("offenders"), refresh);
+		Path fallback = Path.of(properties.getSa().getCacheDir(), "recorded-crime-offenders",
+				"recorded-crime-offenders.csv");
+		try {
+			Path resolved = resolveCachedFile("recorded-crime-offenders", resourceName,
+					properties.getSa().getPackageIds().get("offenders"), refresh);
+			if (DatasetFileValidator.isReadableDataset(resolved)) {
+				return resolved;
+			}
+			log.warn("Invalid SA offender cache at {}; trying fallback", resolved);
+		}
+		catch (Exception ex) {
+			log.warn("Failed to resolve SA offender cache: {}", ex.getMessage());
+		}
+		if (Files.exists(fallback) && DatasetFileValidator.isReadableDataset(fallback)) {
+			log.info("Using SA offender fallback at {}", fallback);
+			return fallback;
+		}
+		throw new IngestionException("No readable SA offender reference file available");
 	}
 
 	public Path resolveCrimeStatisticsFile(String resourceName) {
@@ -70,7 +89,11 @@ public class SaDatasetCacheService {
 		Path dataFile = cacheDir.resolve(sanitiseFileName(resourceName));
 		Path manifestFile = cacheDir.resolve("manifest-" + sanitiseFileName(resourceName) + ".json");
 
-		if (!refresh && Files.exists(dataFile)) {
+		if (!refresh && DatasetTarArchive.exists(dataFile)) {
+			if (!DatasetFileValidator.isReadableDataset(dataFile)) {
+				log.warn("Cached SA dataset {} at {} is unreadable; refreshing", resourceName, dataFile);
+			}
+			else {
 			try {
 				JsonNode remoteResource = fetchRemoteResource(packageId, resourceName);
 				if (isCacheFresh(dataFile, manifestFile, remoteResource)) {
@@ -84,6 +107,7 @@ public class SaDatasetCacheService {
 						dataFile, ex);
 				return dataFile;
 			}
+			}
 		}
 
 		try {
@@ -91,7 +115,7 @@ public class SaDatasetCacheService {
 			return dataFile;
 		}
 		catch (Exception ex) {
-			if (Files.exists(dataFile)) {
+			if (DatasetTarArchive.exists(dataFile)) {
 				log.warn("SA download failed for {}; using existing cache at {}", resourceName, dataFile, ex);
 				return dataFile;
 			}
@@ -124,7 +148,7 @@ public class SaDatasetCacheService {
 		}
 
 		if (manifest.getSha256() != null) {
-			String localHash = sha256(dataFile);
+			String localHash = DatasetTarArchive.sha256(dataFile);
 			if (!manifest.getSha256().equalsIgnoreCase(localHash)) {
 				log.debug("Local file checksum mismatch for {}", dataFile);
 				return false;
@@ -161,8 +185,11 @@ public class SaDatasetCacheService {
 		if (bytes == null || bytes.length == 0) {
 			throw new IngestionException("Empty download for SA resource: " + resourceName);
 		}
+		if (!DatasetFileValidator.looksLikeDataset(bytes)) {
+			throw new IngestionException("SA download for " + resourceName + " returned non-dataset content");
+		}
 
-		Files.write(dataFile, bytes);
+		DatasetTarArchive.writeCsvArchive(bytes, dataFile.getFileName().toString(), dataFile);
 
 		CacheManifest manifest = new CacheManifest();
 		manifest.setResourceName(resourceName);
@@ -171,10 +198,11 @@ public class SaDatasetCacheService {
 		manifest.setResourceHash(metadata.hash());
 		manifest.setResourceLastModified(metadata.lastModified());
 		manifest.setRevisionId(metadata.revisionId());
-		manifest.setSha256(sha256(bytes));
+		manifest.setSha256(DatasetTarArchive.sha256(dataFile));
 		manifest.setLastFetched(Instant.now());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(manifestFile.toFile(), manifest);
-		log.info("Cached SA resource {} ({} bytes) at {}", resourceName, bytes.length, dataFile);
+		Path storedAt = DatasetTarArchive.resolveArchive(dataFile).orElse(dataFile);
+		log.info("Cached SA resource {} as tar archive at {}", resourceName, storedAt);
 	}
 
 	private JsonNode fetchPackage(String packageId) {
@@ -249,7 +277,7 @@ public class SaDatasetCacheService {
 			String lastModifiedRaw = resource.path("last_modified").asText(null);
 			Instant lastModified = null;
 			if (lastModifiedRaw != null && !lastModifiedRaw.isBlank()) {
-				lastModified = Instant.parse(lastModifiedRaw);
+				lastModified = parseInstant(lastModifiedRaw);
 			}
 			return new ResourceMetadata(
 					resource.path("id").asText(null),
@@ -281,6 +309,15 @@ public class SaDatasetCacheService {
 			return true;
 		}
 
+	}
+
+	private static Instant parseInstant(String raw) {
+		try {
+			return Instant.parse(raw);
+		}
+		catch (DateTimeParseException ex) {
+			return LocalDateTime.parse(raw).atOffset(ZoneOffset.UTC).toInstant();
+		}
 	}
 
 }

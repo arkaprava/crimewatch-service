@@ -1,6 +1,7 @@
 package com.example.springgraphqlmongo.ingestion.source;
 
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.cache.DatasetTarArchive;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -42,7 +43,7 @@ public final class TabularFileReader {
 	}
 
 	private static void readCsv(Path file, Consumer<Map<String, String>> rowConsumer) throws IOException {
-		try (BufferedReader reader = Files.newBufferedReader(file)) {
+		try (BufferedReader reader = DatasetTarArchive.openCsvReader(file)) {
 			String headerLine = reader.readLine();
 			if (headerLine == null) {
 				return;
