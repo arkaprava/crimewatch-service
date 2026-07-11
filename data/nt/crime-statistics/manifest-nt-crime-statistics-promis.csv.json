@@ -1,0 +1,11 @@
+{
+  "resourceName" : "nt-crime-statistics-promis.csv",
+  "resourceId" : "ae920f70-92d9-4e9c-80c1-28612859bfb4",
+  "downloadUrl" : "https://data.nt.gov.au/dataset/73b28312-8582-46e9-96ac-e53f825d94be/resource/ae920f70-92d9-4e9c-80c1-28612859bfb4/download/nt_crime_statistics_jan_2023.csv",
+  "resourceHash" : "",
+  "resourceLastModified" : null,
+  "revisionId" : null,
+  "etag" : null,
+  "sha256" : "af9704b5c28c5e3a4da498ca9d0ec133d0c7579c2af993cd9ae8887dd71fb541",
+  "lastFetched" : "2026-07-08T15:40:15.383242Z"
+}

@@ -130,6 +130,17 @@ public final class DatasetTarArchive {
 		return SaDatasetCacheService.sha256(datasetPath);
 	}
 
+	public static InputStream openCombinedInputStream(Path datasetPath) throws IOException {
+		Optional<Path> archive = resolveArchive(datasetPath);
+		if (archive.isPresent()) {
+			return openCombinedStream(listMultipartParts(archive.get()));
+		}
+		if (Files.isRegularFile(datasetPath)) {
+			return Files.newInputStream(datasetPath);
+		}
+		throw new IngestionException("Dataset not found at " + datasetPath);
+	}
+
 	static byte[] toTarGz(byte[] csvBytes, String entryName) throws IOException {
 		return gzip(toTar(csvBytes, entryName));
 	}
@@ -227,7 +238,7 @@ public final class DatasetTarArchive {
 		return new SequenceInputStream(streams);
 	}
 
-	static List<Path> listMultipartParts(Path firstPart) throws IOException {
+	public static List<Path> listMultipartParts(Path firstPart) throws IOException {
 		if (!isMultipart(firstPart)) {
 			return List.of(firstPart);
 		}
@@ -253,7 +264,7 @@ public final class DatasetTarArchive {
 		return null;
 	}
 
-	static boolean isMultipart(Path archivePath) {
+	public static boolean isMultipart(Path archivePath) {
 		return PART_SUFFIX.matcher(archivePath.getFileName().toString()).find();
 	}
 

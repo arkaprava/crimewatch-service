@@ -8,6 +8,14 @@ ingestion:
     cache-dir: data/wa
     districts-file: data/wa/wa-police-districts.geojson
     csv-fallback-filename: crime-timeseries.csv
+  nt:
+    cache-dir: data/nt
+    base-url: http://127.0.0.1:1
+    geography-file: data/nt/nt-police-geography.geojson
+    serpro:
+      csv-fallback-filename: nt-crime-statistics-serpro-fixture.csv
+    promis:
+      csv-fallback-filename: nt-crime-statistics-promis-fixture.csv
   sources:
     - name: sa-police-crime-statistics
       enabled: true
@@ -47,6 +55,40 @@ ingestion:
         suburb: Suburb
         title: Subcategory
         category: Offence category
+    - name: nt-police-crime-statistics
+      enabled: true
+      type: nt-crime-statistics
+      series: serpro
+      state: NT
+      zone-id: Australia/Darwin
+      batch-size: 50000
+      fields:
+        reporting-period-year: Year
+        reporting-period-month: Month number
+        category: Offence category
+        title: "Offence type "
+        suburb: Reporting Region
+        geography-level: Statistical Area 2
+        offence-count: Number of offences
+        alcohol-involvement: Alcohol involvement
+        dv-involvement: DV involvement
+    - name: nt-police-crime-statistics-historical
+      enabled: true
+      type: nt-crime-statistics
+      series: promis
+      state: NT
+      zone-id: Australia/Darwin
+      batch-size: 50000
+      fields:
+        reporting-period-year: Year
+        reporting-period-month: Month number
+        category: Offence category
+        title: "Offence type "
+        suburb: Reporting Region
+        geography-level: Statistical Area 2
+        offence-count: Number of offences
+        alcohol-involvement: Alcohol involvement
+        dv-involvement: DV involvement
 
 security:
   api-keys:

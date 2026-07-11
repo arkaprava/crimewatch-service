@@ -89,4 +89,35 @@ class NswBocsarStatisticsDataSourceTest {
 		assertThat(records).noneMatch(record -> record.offenceCount() == 0);
 	}
 
+	@Test
+	void assignsDistinctExternalIdsPerOffenceSubcategoryAndMonth() {
+		Path fixture = Path.of("data/nsw/crime-statistics/suburb-data-fixture.csv");
+		when(cacheService.resolveSuburbDataFile(false)).thenReturn(fixture);
+		when(suburbGeocoder.resolve(any(), eq("NSW"))).thenAnswer(invocation -> {
+			String suburb = invocation.getArgument(0);
+			AustralianSuburb resolved = AustralianSuburb.builder()
+					.id("NSW:" + suburb.toUpperCase())
+					.name(suburb)
+					.state("NSW")
+					.postcode("2000")
+					.centroid(new GeoJsonPoint(151.0, -33.8))
+					.build();
+			return SuburbMatch.builder()
+					.suburb(resolved)
+					.status(GeocodeStatus.RESOLVED)
+					.canonicalName(suburb)
+					.build();
+		});
+
+		List<CrimeRecord> records = dataSource.fetchRecords();
+		List<CrimeRecord> parramattaJan2024 = records.stream()
+				.filter(record -> "Parramatta".equals(record.suburb()) && "2024-01".equals(record.reportingPeriod()))
+				.toList();
+
+		assertThat(parramattaJan2024).hasSize(2);
+		assertThat(parramattaJan2024.stream().map(CrimeRecord::externalId).distinct().count()).isEqualTo(2);
+		assertThat(parramattaJan2024).anyMatch(record -> record.offenceCount() == 5);
+		assertThat(parramattaJan2024).anyMatch(record -> record.offenceCount() == 4);
+	}
+
 }

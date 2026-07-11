@@ -28,7 +28,7 @@ ingestion:
     cache-file: data/suburbs/australian-suburbs.geojson
   sources:
     - name: qld-police-offences
-      enabled: true
+      enabled: false
       type: ckan
       base-url: https://www.data.qld.gov.au
       resource-id: 9f7a7eed-bfba-44ba-8288-812f6cc26115
@@ -47,7 +47,7 @@ ingestion:
       package-id: 860126f7-eeb5-4fbc-be44-069aa0467d11
       state: SA
       zone-id: Australia/Adelaide
-      batch-size: 5000
+      batch-size: 0
       resource-names:
         - "Crime Statistics 2024-25"
       fields:
@@ -58,7 +58,7 @@ ingestion:
         reporting-period: Financial Year
         date-format: dd/MM/yyyy
     - name: wa-police-crime-statistics
-      enabled: true
+      enabled: false
       type: wa-crime-statistics
       state: WA
       zone-id: Australia/Perth
@@ -75,7 +75,7 @@ ingestion:
       type: nsw-bocsar-statistics
       state: NSW
       zone-id: Australia/Sydney
-      batch-size: 5000
+      batch-size: 0
       fields:
         suburb: Suburb
         title: Subcategory
@@ -87,8 +87,42 @@ ingestion:
       zone-id: Australia/Hobart
       batch-size: 5000
     - name: tas-corporate-performance
-      enabled: true
+      enabled: false
       type: tas-corporate-performance
       state: TAS
       zone-id: Australia/Hobart
       batch-size: 5000
+    - name: nt-police-crime-statistics
+      enabled: true
+      type: nt-crime-statistics
+      series: serpro
+      state: NT
+      zone-id: Australia/Darwin
+      batch-size: 50000
+      fields:
+        reporting-period-year: Year
+        reporting-period-month: Month number
+        category: Offence category
+        title: "Offence type "
+        suburb: Reporting Region
+        geography-level: Statistical Area 2
+        offence-count: Number of offences
+        alcohol-involvement: Alcohol involvement
+        dv-involvement: DV involvement
+    - name: nt-police-crime-statistics-historical
+      enabled: true
+      type: nt-crime-statistics
+      series: promis
+      state: NT
+      zone-id: Australia/Darwin
+      batch-size: 50000
+      fields:
+        reporting-period-year: Year
+        reporting-period-month: Month number
+        category: Offence category
+        title: "Offence type "
+        suburb: Reporting Region
+        geography-level: Statistical Area 2
+        offence-count: Number of offences
+        alcohol-involvement: Alcohol involvement
+        dv-involvement: DV involvement

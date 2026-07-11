@@ -2,6 +2,7 @@ package com.example.springgraphqlmongo.ingestion.cache;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.storage.DatasetVersionRegistrar;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,8 @@ public class SaDatasetCacheService {
 	private final RestClient.Builder restClientBuilder;
 
 	private final ObjectMapper objectMapper;
+
+	private final DatasetVersionRegistrar datasetVersionRegistrar;
 
 	public Path resolveCrimeStatisticsFile(String resourceName, boolean refresh) {
 		return resolveCachedFile("crime-statistics", resourceName, properties.getSa().getPackageIds()
@@ -111,7 +114,7 @@ public class SaDatasetCacheService {
 		}
 
 		try {
-			downloadResource(packageId, resourceName, dataFile, manifestFile);
+			downloadResource(datasetDir, packageId, resourceName, dataFile, manifestFile);
 			return dataFile;
 		}
 		catch (Exception ex) {
@@ -164,8 +167,8 @@ public class SaDatasetCacheService {
 				.orElseThrow(() -> new IngestionException("Resource not found in SA package: " + resourceName));
 	}
 
-	private void downloadResource(String packageId, String resourceName, Path dataFile, Path manifestFile)
-			throws IOException {
+	private void downloadResource(String datasetDir, String packageId, String resourceName, Path dataFile,
+			Path manifestFile) throws IOException {
 		JsonNode resource = fetchRemoteResource(packageId, resourceName);
 		ResourceMetadata metadata = ResourceMetadata.from(resource);
 
@@ -202,6 +205,7 @@ public class SaDatasetCacheService {
 		manifest.setLastFetched(Instant.now());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(manifestFile.toFile(), manifest);
 		Path storedAt = DatasetTarArchive.resolveArchive(dataFile).orElse(dataFile);
+		datasetVersionRegistrar.register("sa:" + datasetDir, resourceName, dataFile, manifest);
 		log.info("Cached SA resource {} as tar archive at {}", resourceName, storedAt);
 	}
 

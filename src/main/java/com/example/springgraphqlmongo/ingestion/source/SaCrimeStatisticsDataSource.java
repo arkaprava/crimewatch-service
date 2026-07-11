@@ -90,9 +90,6 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 			Path file = cacheService.resolveCrimeStatisticsFile(resourceName, refresh);
 			records.addAll(parseCrimeStatistics(file, offenderStats));
 		}
-		if (records.size() > config.getBatchSize() && config.getBatchSize() > 0) {
-			return records.subList(0, config.getBatchSize());
-		}
 		return records;
 	}
 
@@ -129,6 +126,7 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 		String suburb = firstColumn(columns, values, fields.getSuburb(), "Suburb - Incident", "Suburb");
 		String offence = firstColumn(columns, values, fields.getTitle(), "Offence Level 3 Description",
 				"Offence Description");
+		String division = firstColumn(columns, values, "Offence Level 2 Description");
 		String category = firstColumn(columns, values, fields.getCategory(), "Offence Level 1 Description",
 				"Offence Division");
 		String period = firstColumn(columns, values, fields.getReportingPeriod(), "Financial Year", "Reported Date");
@@ -154,7 +152,8 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 		}
 
 		String normalisedOffence = offenceCategoryNormaliser.normalise(offence);
-		String externalId = slugify("sa-" + period + "-" + suburb + "-" + normalisedOffence);
+		String externalId = slugify("sa-" + period + "-" + suburb + "-" + categoryKey(category) + "-"
+				+ divisionKey(division) + "-" + offence);
 		SuburbMatch suburbMatch = suburbGeocoder.resolve(suburb, config.getState());
 
 		Double latitude = null;
@@ -286,6 +285,14 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 			end--;
 		}
 		return slug.substring(start, end);
+	}
+
+	private static String categoryKey(String category) {
+		return category != null && !category.isBlank() ? category : "unknown";
+	}
+
+	private static String divisionKey(String division) {
+		return division != null && !division.isBlank() ? division : "unknown";
 	}
 
 }

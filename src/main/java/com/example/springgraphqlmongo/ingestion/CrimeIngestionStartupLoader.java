@@ -1,7 +1,7 @@
 package com.example.springgraphqlmongo.ingestion;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
-import com.example.springgraphqlmongo.repository.CrimeIncidentRepository;
+import com.example.springgraphqlmongo.service.ActiveIngestionRunService;
 import com.example.springgraphqlmongo.service.CrimeIngestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,9 +21,9 @@ public class CrimeIngestionStartupLoader {
 
 	private final CrimeDataSourceRegistry dataSourceRegistry;
 
-	private final CrimeIncidentRepository crimeIncidentRepository;
-
 	private final CrimeIngestionService crimeIngestionService;
+
+	private final ActiveIngestionRunService activeIngestionRunService;
 
 	@Async
 	@EventListener(ApplicationReadyEvent.class)
@@ -36,9 +36,8 @@ public class CrimeIngestionStartupLoader {
 			if (!source.isEnabled()) {
 				continue;
 			}
-			long existing = crimeIncidentRepository.countBySource(source.name());
-			if (existing > 0) {
-				log.debug("Skipping startup ingestion for {}; {} records already present", source.name(), existing);
+			if (activeIngestionRunService.hasActiveData(source.name())) {
+				log.debug("Skipping startup ingestion for {}; active data already present", source.name());
 				continue;
 			}
 			log.info("No records for enabled source {}; running startup ingestion", source.name());

@@ -15,7 +15,7 @@ public class IngestionScheduler {
 
 	private final CrimeIngestionService crimeIngestionService;
 
-	@Scheduled(cron = "${ingestion.schedule.cron:0 0 3 * * *}")
+	@Scheduled(cron = "${ingestion.schedule.cron:0 0 3,15 * * *}")
 	public void runScheduledIngestion() {
 		log.info("Starting scheduled crime data ingestion");
 		crimeIngestionService.ingestAll()

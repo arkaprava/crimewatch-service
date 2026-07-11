@@ -1,6 +1,7 @@
 package com.example.springgraphqlmongo.ingestion.cache;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
+import com.example.springgraphqlmongo.ingestion.storage.DatasetVersionRegistrar;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class WaDatasetCacheServiceTest {
 
@@ -31,7 +33,8 @@ class WaDatasetCacheServiceTest {
 		properties.getWa().setCacheDir(tempDir.toString());
 		properties.getWa().setCacheTtl(Duration.ofDays(7));
 		properties.getWa().setCsvFallbackFilename("crime-timeseries.csv");
-		cacheService = new WaDatasetCacheService(properties, RestClient.builder(), objectMapper);
+		cacheService = new WaDatasetCacheService(properties, RestClient.builder(), objectMapper,
+				mock(DatasetVersionRegistrar.class));
 	}
 
 	@Test

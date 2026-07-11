@@ -69,18 +69,13 @@ public class NswBocsarStatisticsDataSource implements CrimeDataSource {
 	@Override
 	public List<CrimeRecord> fetchRecords() {
 		Path file = cacheService.resolveSuburbDataFile(refresh);
-		List<CrimeRecord> records = parseWideFormatCsv(file);
-		if (records.size() > config.getBatchSize() && config.getBatchSize() > 0) {
-			return records.subList(0, config.getBatchSize());
-		}
-		return records;
+		return parseWideFormatCsv(file);
 	}
 
 	private List<CrimeRecord> parseWideFormatCsv(Path file) {
 		IngestionProperties.FieldMapping fields = config.getFields();
 		List<CrimeRecord> records = new ArrayList<>();
 		ZoneId zone = ZoneId.of(config.getZoneId());
-		int batchLimit = config.getBatchSize() > 0 ? config.getBatchSize() : Integer.MAX_VALUE;
 
 		try (BufferedReader reader = DatasetTarArchive.openCsvReader(file)) {
 			String headerLine = reader.readLine();
@@ -120,10 +115,6 @@ public class NswBocsarStatisticsDataSource implements CrimeDataSource {
 
 				String normalisedOffence = offenceCategoryNormaliser.normalise(offence);
 				for (MonthColumn monthColumn : monthColumns) {
-					if (records.size() >= batchLimit) {
-						log.info("Reached NSW batch limit of {} records", batchLimit);
-						return records;
-					}
 					String countRaw = valueAt(values, monthColumn.index());
 					if (countRaw == null || countRaw.isBlank()) {
 						continue;
@@ -141,7 +132,8 @@ public class NswBocsarStatisticsDataSource implements CrimeDataSource {
 
 					String reportingPeriod = monthColumn.yearMonth().toString();
 					String externalId = SaCrimeStatisticsDataSource.slugify(
-							"nsw-" + reportingPeriod + "-" + canonicalSuburb + "-" + normalisedOffence);
+							"nsw-" + reportingPeriod + "-" + canonicalSuburb + "-" + categoryKey(category)
+									+ "-" + offence);
 					Instant occurredAt = monthColumn.yearMonth().atEndOfMonth().atTime(12, 0).atZone(zone).toInstant();
 
 					records.add(CrimeRecord.builder()
@@ -223,6 +215,10 @@ public class NswBocsarStatisticsDataSource implements CrimeDataSource {
 
 	private String normaliseHeader(String header) {
 		return header.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+	}
+
+	private static String categoryKey(String category) {
+		return category != null && !category.isBlank() ? category : "unknown";
 	}
 
 	private record MonthColumn(int index, YearMonth yearMonth, String label) {

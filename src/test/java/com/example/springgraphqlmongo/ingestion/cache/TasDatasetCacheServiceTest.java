@@ -1,6 +1,7 @@
 package com.example.springgraphqlmongo.ingestion.cache;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
+import com.example.springgraphqlmongo.ingestion.storage.DatasetVersionRegistrar;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class TasDatasetCacheServiceTest {
 
@@ -30,7 +32,8 @@ class TasDatasetCacheServiceTest {
 		IngestionProperties properties = new IngestionProperties();
 		properties.getTas().setCacheDir(tempDir.toString());
 		properties.getTas().setCacheTtl(Duration.ofDays(30));
-		cacheService = new TasDatasetCacheService(properties, RestClient.builder(), objectMapper);
+		cacheService = new TasDatasetCacheService(properties, RestClient.builder(), objectMapper,
+				mock(DatasetVersionRegistrar.class));
 	}
 
 	@Test

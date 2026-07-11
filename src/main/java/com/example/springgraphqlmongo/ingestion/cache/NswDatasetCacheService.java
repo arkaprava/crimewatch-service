@@ -2,6 +2,7 @@ package com.example.springgraphqlmongo.ingestion.cache;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.storage.DatasetVersionRegistrar;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,8 @@ public class NswDatasetCacheService {
 	private final RestClient.Builder restClientBuilder;
 
 	private final ObjectMapper objectMapper;
+
+	private final DatasetVersionRegistrar datasetVersionRegistrar;
 
 	public Path resolveSuburbDataFile(boolean refresh) {
 		IngestionProperties.NswSettings nsw = properties.getNsw();
@@ -115,6 +118,7 @@ public class NswDatasetCacheService {
 		manifest.setLastFetched(Instant.now());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(manifestFile.toFile(), manifest);
 		Path storedAt = DatasetTarArchive.resolveArchive(dataFile).orElse(dataFile);
+		datasetVersionRegistrar.register("nsw:crime-statistics", resourceName, dataFile, manifest);
 		log.info("Cached NSW resource {} as tar archive at {}", resourceName, storedAt);
 	}
 

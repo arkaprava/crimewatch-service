@@ -30,6 +30,8 @@ public class IngestionProperties {
 
 	private TasSettings tas = new TasSettings();
 
+	private NtSettings nt = new NtSettings();
+
 	private SuburbSettings suburbs = new SuburbSettings();
 
 	private List<Source> sources = new ArrayList<>();
@@ -42,8 +44,8 @@ public class IngestionProperties {
 
 		private boolean enabled = false;
 
-		/** Default: daily at 03:00. */
-		private String cron = "0 0 3 * * *";
+		/** Default: twice daily at 03:00 and 15:00. */
+		private String cron = "0 0 3,15 * * *";
 
 	}
 
@@ -124,6 +126,50 @@ public class IngestionProperties {
 	}
 
 	@Data
+	public static class NtSettings {
+
+		private String cacheDir = "data/nt";
+
+		private Duration cacheTtl = Duration.ofDays(7);
+
+		private String downloadUserAgent = "crime-info-service/1.0";
+
+		private String baseUrl = "https://data.nt.gov.au";
+
+		private String geographyFile = "data/nt/nt-police-geography.geojson";
+
+		/** First month of the SerPro time series (YYYY-MM). */
+		private String serproCutoverMonth = "2023-12";
+
+		private SerproSeries serpro = new SerproSeries();
+
+		private PromisSeries promis = new PromisSeries();
+
+		@Data
+		public static class SerproSeries {
+
+			private String logicalFilename = "nt-crime-statistics-serpro.csv";
+
+			private String csvFallbackFilename = "nt-crime-statistics-serpro-fixture.csv";
+
+			private String packageSearchQuery = "Current NT Crime Statistics";
+
+		}
+
+		@Data
+		public static class PromisSeries {
+
+			private String logicalFilename = "nt-crime-statistics-promis.csv";
+
+			private String csvFallbackFilename = "nt-crime-statistics-promis-fixture.csv";
+
+			private String packageName = "current-nt-crime-statistics-january-2023";
+
+		}
+
+	}
+
+	@Data
 	public static class SuburbSettings {
 
 		private String cacheFile = "data/suburbs/australian-suburbs.geojson";
@@ -143,8 +189,11 @@ public class IngestionProperties {
 
 		private boolean enabled = false;
 
-		/** ckan | sa-crime-statistics | wa-crime-statistics | nsw-bocsar-statistics | tas-crime-statistics-supplement | tas-corporate-performance */
+		/** ckan | sa-crime-statistics | wa-crime-statistics | nsw-bocsar-statistics | tas-crime-statistics-supplement | tas-corporate-performance | nt-crime-statistics */
 		private String type = "ckan";
+
+		/** For nt-crime-statistics: serpro (current) or promis (historical). */
+		private String series;
 
 		/** Portal root, e.g. https://www.data.qld.gov.au */
 		private String baseUrl;
@@ -164,13 +213,21 @@ public class IngestionProperties {
 		/** State/territory the dataset covers, e.g. QLD, NSW, VIC. */
 		private String state;
 
-		/** Max records fetched per run. */
+		/** Max records fetched per run; 0 means unlimited. */
 		private int batchSize = 500;
 
 		/** Time zone used to interpret dates without offset. */
 		private String zoneId = "Australia/Sydney";
 
 		private FieldMapping fields = new FieldMapping();
+
+		public boolean isBatchLimited() {
+			return batchSize > 0;
+		}
+
+		public int batchLimit() {
+			return batchSize > 0 ? batchSize : Integer.MAX_VALUE;
+		}
 
 	}
 
@@ -204,6 +261,14 @@ public class IngestionProperties {
 		private String offenceCount;
 
 		private String reportingPeriod;
+
+		private String reportingPeriodYear;
+
+		private String reportingPeriodMonth;
+
+		private String alcoholInvolvement;
+
+		private String dvInvolvement;
 
 	}
 

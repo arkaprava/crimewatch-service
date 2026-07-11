@@ -61,7 +61,8 @@ ingestion:
   load-on-startup: true
   schedule:
     enabled: false
-    cron: "0 0 3 * * *"
+    # Twice daily at 03:00 and 15:00 (server local time).
+    cron: "0 0 3,15 * * *"
   sa:
     cache-dir: data/sa
     cache-ttl: P7D
@@ -88,6 +89,20 @@ ingestion:
     supplement-pdf-url: https://www.police.tas.gov.au/uploads/DPFEM-Crime-Statistics-Supplement-2024-25.pdf
     corporate-performance-pdf-url: https://www.police.tas.gov.au/uploads/Corporate-Performance-Report-March-2026.pdf
     geography-file: data/tas/tas-police-geography.geojson
+  nt:
+    cache-dir: data/nt
+    cache-ttl: P7D
+    base-url: https://data.nt.gov.au
+    geography-file: data/nt/nt-police-geography.geojson
+    serpro-cutover-month: 2023-12
+    serpro:
+      logical-filename: nt-crime-statistics-serpro.csv
+      csv-fallback-filename: nt-crime-statistics-serpro-fixture.csv
+      package-search-query: "Current NT Crime Statistics"
+    promis:
+      logical-filename: nt-crime-statistics-promis.csv
+      csv-fallback-filename: nt-crime-statistics-promis-fixture.csv
+      package-name: current-nt-crime-statistics-january-2023
   suburbs:
     cache-file: data/suburbs/australian-suburbs.geojson
     cache-ttl: P365D
@@ -115,7 +130,7 @@ ingestion:
       type: nsw-bocsar-statistics
       state: NSW
       zone-id: Australia/Sydney
-      batch-size: 10000
+      batch-size: 0
       fields:
         suburb: Suburb
         title: Subcategory
@@ -140,7 +155,7 @@ ingestion:
       package-id: 860126f7-eeb5-4fbc-be44-069aa0467d11
       state: SA
       zone-id: Australia/Adelaide
-      batch-size: 5000
+      batch-size: 0
       resource-names:
         - "Crime Statistics 2024-25"
       fields:
@@ -150,7 +165,7 @@ ingestion:
         offence-count: Count
         reporting-period: Financial Year
     - name: wa-police-crime-statistics
-      enabled: true
+      enabled: false
       type: wa-crime-statistics
       state: WA
       zone-id: Australia/Perth
@@ -169,25 +184,45 @@ ingestion:
       zone-id: Australia/Hobart
       batch-size: 5000
     - name: tas-corporate-performance
-      enabled: true
+      enabled: false
       type: tas-corporate-performance
       state: TAS
       zone-id: Australia/Hobart
       batch-size: 5000
     - name: nt-police-crime-statistics
-      enabled: false
-      base-url: https://data.nt.gov.au
-      resource-id: "REPLACE_WITH_RESOURCE_ID"
+      enabled: true
+      type: nt-crime-statistics
+      series: serpro
       state: NT
       zone-id: Australia/Darwin
-      batch-size: 500
+      batch-size: 50000
       fields:
-        id: _id
-        title: offence_type
-        category: offence_group
-        occurred-at: offence_date
-        suburb: suburb
-        postal-code: postcode
+        reporting-period-year: Year
+        reporting-period-month: Month number
+        category: Offence category
+        title: "Offence type "
+        suburb: Reporting Region
+        geography-level: Statistical Area 2
+        offence-count: Number of offences
+        alcohol-involvement: Alcohol involvement
+        dv-involvement: DV involvement
+    - name: nt-police-crime-statistics-historical
+      enabled: true
+      type: nt-crime-statistics
+      series: promis
+      state: NT
+      zone-id: Australia/Darwin
+      batch-size: 50000
+      fields:
+        reporting-period-year: Year
+        reporting-period-month: Month number
+        category: Offence category
+        title: "Offence type "
+        suburb: Reporting Region
+        geography-level: Statistical Area 2
+        offence-count: Number of offences
+        alcohol-involvement: Alcohol involvement
+        dv-involvement: DV involvement
     - name: act-policing-incidents
       enabled: false
       # ACT Policing datasets mirrored on the national portal; the ACT's own

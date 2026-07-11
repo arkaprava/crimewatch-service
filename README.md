@@ -511,7 +511,7 @@ mutation {
 ### Scheduled ingestion
 
 Off by default. Enable via `ingestion.schedule.enabled` (cron: `ingestion.schedule.cron`,
-default `0 0 3 * * *`).
+default `0 0 3,15 * * *` — twice daily at 03:00 and 15:00).
 
 ## Read cache
 

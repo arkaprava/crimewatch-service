@@ -2,6 +2,7 @@ package com.example.springgraphqlmongo.ingestion.cache;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.storage.DatasetVersionRegistrar;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,8 @@ public class TasDatasetCacheService {
 	private final RestClient.Builder restClientBuilder;
 
 	private final ObjectMapper objectMapper;
+
+	private final DatasetVersionRegistrar datasetVersionRegistrar;
 
 	public Path resolveSupplementPdf(boolean refresh) {
 		IngestionProperties.TasSettings tas = properties.getTas();
@@ -97,7 +100,7 @@ public class TasDatasetCacheService {
 		}
 
 		try {
-			downloadPdf(downloadUrl, dataFile, manifestFile, filename);
+			downloadPdf(downloadUrl, dataFile, manifestFile, filename, cacheDir.getFileName().toString());
 			if (isReadablePdf(dataFile)) {
 				return dataFile;
 			}
@@ -113,8 +116,8 @@ public class TasDatasetCacheService {
 		throw new IngestionException(label + " cache miss and download failed for " + filename);
 	}
 
-	private void downloadPdf(String downloadUrl, Path dataFile, Path manifestFile, String resourceName)
-			throws IOException {
+	private void downloadPdf(String downloadUrl, Path dataFile, Path manifestFile, String resourceName,
+			String datasetDir) throws IOException {
 		RestClient client = restClientBuilder.build();
 		byte[] bytes = client.get()
 				.uri(downloadUrl)
@@ -137,6 +140,7 @@ public class TasDatasetCacheService {
 		manifest.setSha256(SaDatasetCacheService.sha256(bytes));
 		manifest.setLastFetched(Instant.now());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(manifestFile.toFile(), manifest);
+		datasetVersionRegistrar.register("tas:" + datasetDir, resourceName, dataFile, manifest);
 		log.info("Cached TAS resource {} ({} bytes) at {}", resourceName, bytes.length, dataFile);
 	}
 

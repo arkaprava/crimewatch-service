@@ -24,7 +24,8 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "crime_incidents")
-@CompoundIndex(name = "source_external_id_idx", def = "{'source': 1, 'externalId': 1}", unique = true, sparse = true)
+@CompoundIndex(name = "run_external_id_idx", def = "{'ingestionRunId': 1, 'externalId': 1}", unique = true, sparse = true)
+@CompoundIndex(name = "source_external_id_lookup_idx", def = "{'source': 1, 'externalId': 1}")
 public class CrimeIncident {
 
 	@Id
@@ -48,6 +49,10 @@ public class CrimeIncident {
 	/** Stable identifier of the record within its source, used for de-duplication. */
 	@Size(max = 255)
 	private String externalId;
+
+	/** Append-only ingestion run that produced this record. */
+	@Indexed
+	private String ingestionRunId;
 
 	@NotBlank
 	@Size(max = 255)

@@ -27,9 +27,15 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class CrimeIncidentService {
 
+	private static final int NEAR_RESULT_LIMIT = CrimeSearchPagination.MAX_LIMIT;
+
+	private static final int MAX_MATCHING_SUBURBS = 50;
+
 	private final CrimeIncidentRepository crimeIncidentRepository;
 
 	private final MongoTemplate mongoTemplate;
+
+	private final ActiveIngestionRunService activeIngestionRunService;
 
 	@Cacheable(cacheNames = CrimeCacheNames.CRIME_BY_ID, keyGenerator = "crimeCacheKeyGenerator")
 	public CrimeIncident getById(String id) {
@@ -51,7 +57,10 @@ public class CrimeIncidentService {
 			criteria.add(Criteria.where("location.state").regex("^" + Pattern.quote(state) + "$", "i"));
 		}
 		if (source != null && !source.isBlank()) {
-			criteria.add(Criteria.where("source").regex("^" + Pattern.quote(source) + "$", "i"));
+			criteria.add(activeIngestionRunService.visibilityCriteria(source));
+		}
+		else {
+			criteria.add(activeIngestionRunService.allVisibleCriteria());
 		}
 		if (crimeType != null) {
 			criteria.add(Criteria.where("crimeType").is(crimeType));
@@ -76,7 +85,7 @@ public class CrimeIncidentService {
 	 * Uses suburb perimeter/centroid matching for aggregate SA records and
 	 * point proximity for incident-level records.
 	 */
-	@Cacheable(cacheNames = CrimeCacheNames.CRIMES_NEAR, keyGenerator = "crimeCacheKeyGenerator", sync = true)
+	@Cacheable(cacheNames = CrimeCacheNames.CRIMES_NEAR, keyGenerator = "crimeCacheKeyGenerator")
 	public List<CrimeIncident> findNear(double latitude, double longitude, double radiusKm, String state) {
 		if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
 			throw new IllegalArgumentException("Invalid coordinates: " + latitude + ", " + longitude);
@@ -92,7 +101,9 @@ public class CrimeIncidentService {
 		List<String> suburbIds = findMatchingSuburbIds(searchPoint, radiusMeters, state);
 		if (!suburbIds.isEmpty()) {
 			Query suburbIncidentQuery = new Query(Criteria.where("location.suburbId").in(suburbIds));
+			suburbIncidentQuery.addCriteria(activeIngestionRunService.allVisibleCriteria());
 			applyStateFilter(suburbIncidentQuery, state);
+			suburbIncidentQuery.limit(NEAR_RESULT_LIMIT);
 			mongoTemplate.find(suburbIncidentQuery, CrimeIncident.class)
 					.forEach(incident -> results.put(incident.getId(), incident));
 		}
@@ -100,11 +111,17 @@ public class CrimeIncidentService {
 		Query geoQuery = new Query(Criteria.where("geo_coordinates")
 				.nearSphere(searchPoint)
 				.maxDistance(radiusMeters));
+		geoQuery.addCriteria(activeIngestionRunService.allVisibleCriteria());
 		applyStateFilter(geoQuery, state);
+		geoQuery.limit(NEAR_RESULT_LIMIT);
 		mongoTemplate.find(geoQuery, CrimeIncident.class)
 				.forEach(incident -> results.putIfAbsent(incident.getId(), incident));
 
-		return new ArrayList<>(results.values());
+		final var merged = new ArrayList<>(results.values());
+		if (merged.size() <= NEAR_RESULT_LIMIT) {
+			return merged;
+		}
+		return new ArrayList<>(merged.subList(0, NEAR_RESULT_LIMIT));
 	}
 
 	private List<String> findMatchingSuburbIds(GeoJsonPoint searchPoint, double radiusMeters, String state) {
@@ -116,6 +133,7 @@ public class CrimeIncidentService {
 		if (state != null && !state.isBlank()) {
 			centroidQuery.addCriteria(Criteria.where("state").regex("^" + Pattern.quote(state) + "$", "i"));
 		}
+		centroidQuery.limit(MAX_MATCHING_SUBURBS);
 		mongoTemplate.find(centroidQuery, AustralianSuburb.class)
 				.forEach(suburb -> matches.put(suburb.getId(), suburb));
 
@@ -123,10 +141,11 @@ public class CrimeIncidentService {
 		if (state != null && !state.isBlank()) {
 			perimeterQuery.addCriteria(Criteria.where("state").regex("^" + Pattern.quote(state) + "$", "i"));
 		}
+		perimeterQuery.limit(MAX_MATCHING_SUBURBS);
 		mongoTemplate.find(perimeterQuery, AustralianSuburb.class)
 				.forEach(suburb -> matches.put(suburb.getId(), suburb));
 
-		return matches.keySet().stream().toList();
+		return matches.keySet().stream().limit(MAX_MATCHING_SUBURBS).toList();
 	}
 
 	private void applyStateFilter(Query query, String state) {

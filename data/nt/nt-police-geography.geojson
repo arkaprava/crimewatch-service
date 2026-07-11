@@ -1,0 +1,32 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type": "Feature", "properties": {"name": "Darwin", "level": "region", "state": "NT", "centroid": [130.841, -12.463]}, "geometry": {"type": "Point", "coordinates": [130.841, -12.463]}},
+    {"type": "Feature", "properties": {"name": "Palmerston", "level": "region", "state": "NT", "centroid": [130.983, -12.484]}, "geometry": {"type": "Point", "coordinates": [130.983, -12.484]}},
+    {"type": "Feature", "properties": {"name": "Alice Springs", "level": "region", "state": "NT", "centroid": [133.881, -23.698]}, "geometry": {"type": "Point", "coordinates": [133.881, -23.698]}},
+    {"type": "Feature", "properties": {"name": "Katherine", "level": "region", "state": "NT", "centroid": [132.263, -14.465]}, "geometry": {"type": "Point", "coordinates": [132.263, -14.465]}},
+    {"type": "Feature", "properties": {"name": "Tennant Creek", "level": "region", "state": "NT", "centroid": [134.191, -19.647]}, "geometry": {"type": "Point", "coordinates": [134.191, -19.647]}},
+    {"type": "Feature", "properties": {"name": "Nhulunbuy", "level": "region", "state": "NT", "centroid": [136.778, -12.198]}, "geometry": {"type": "Point", "coordinates": [136.778, -12.198]}},
+    {"type": "Feature", "properties": {"name": "NT Balance", "level": "region", "state": "NT", "centroid": [133.5, -19.5]}, "geometry": {"type": "Point", "coordinates": [133.5, -19.5]}},
+    {"type": "Feature", "properties": {"name": "Alligator", "level": "sa2", "state": "NT", "centroid": [132.8, -12.7]}, "geometry": {"type": "Point", "coordinates": [132.8, -12.7]}},
+    {"type": "Feature", "properties": {"name": "Anindilyakwa", "level": "sa2", "state": "NT", "centroid": [136.4, -13.8]}, "geometry": {"type": "Point", "coordinates": [136.4, -13.8]}},
+    {"type": "Feature", "properties": {"name": "Barkly", "level": "sa2", "state": "NT", "centroid": [134.2, -19.65]}, "geometry": {"type": "Point", "coordinates": [134.2, -19.65]}},
+    {"type": "Feature", "properties": {"name": "Daly", "level": "sa2", "state": "NT", "centroid": [131.1, -13.24]}, "geometry": {"type": "Point", "coordinates": [131.1, -13.24]}},
+    {"type": "Feature", "properties": {"name": "East Arnhem", "level": "sa2", "state": "NT", "centroid": [136.0, -12.5]}, "geometry": {"type": "Point", "coordinates": [136.0, -12.5]}},
+    {"type": "Feature", "properties": {"name": "Elsey", "level": "sa2", "state": "NT", "centroid": [133.0, -17.5]}, "geometry": {"type": "Point", "coordinates": [133.0, -17.5]}},
+    {"type": "Feature", "properties": {"name": "Gulf", "level": "sa2", "state": "NT", "centroid": [135.5, -16.5]}, "geometry": {"type": "Point", "coordinates": [135.5, -16.5]}},
+    {"type": "Feature", "properties": {"name": "Howard Springs", "level": "sa2", "state": "NT", "centroid": [131.0, -12.5]}, "geometry": {"type": "Point", "coordinates": [131.0, -12.5]}},
+    {"type": "Feature", "properties": {"name": "Humpty Doo", "level": "sa2", "state": "NT", "centroid": [131.0, -12.6]}, "geometry": {"type": "Point", "coordinates": [131.0, -12.6]}},
+    {"type": "Feature", "properties": {"name": "Koolpinyah", "level": "sa2", "state": "NT", "centroid": [131.3, -12.4]}, "geometry": {"type": "Point", "coordinates": [131.3, -12.4]}},
+    {"type": "Feature", "properties": {"name": "Petermann - Simpson", "level": "sa2", "state": "NT", "centroid": [129.5, -24.5]}, "geometry": {"type": "Point", "coordinates": [129.5, -24.5]}},
+    {"type": "Feature", "properties": {"name": "Sandover - Plenty", "level": "sa2", "state": "NT", "centroid": [134.5, -22.0]}, "geometry": {"type": "Point", "coordinates": [134.5, -22.0]}},
+    {"type": "Feature", "properties": {"name": "Tanami", "level": "sa2", "state": "NT", "centroid": [129.0, -20.5]}, "geometry": {"type": "Point", "coordinates": [129.0, -20.5]}},
+    {"type": "Feature", "properties": {"name": "Thamarrurr", "level": "sa2", "state": "NT", "centroid": [130.2, -14.2]}, "geometry": {"type": "Point", "coordinates": [130.2, -14.2]}},
+    {"type": "Feature", "properties": {"name": "Tiwi Islands", "level": "sa2", "state": "NT", "centroid": [130.5, -11.5]}, "geometry": {"type": "Point", "coordinates": [130.5, -11.5]}},
+    {"type": "Feature", "properties": {"name": "Victoria River", "level": "sa2", "state": "NT", "centroid": [130.0, -16.5]}, "geometry": {"type": "Point", "coordinates": [130.0, -16.5]}},
+    {"type": "Feature", "properties": {"name": "Virginia", "level": "sa2", "state": "NT", "centroid": [130.9, -12.5]}, "geometry": {"type": "Point", "coordinates": [130.9, -12.5]}},
+    {"type": "Feature", "properties": {"name": "Weddell", "level": "sa2", "state": "NT", "centroid": [130.9, -12.7]}, "geometry": {"type": "Point", "coordinates": [130.9, -12.7]}},
+    {"type": "Feature", "properties": {"name": "West Arnhem", "level": "sa2", "state": "NT", "centroid": [133.0, -12.5]}, "geometry": {"type": "Point", "coordinates": [133.0, -12.5]}},
+    {"type": "Feature", "properties": {"name": "Yuendumu - Anmatjere", "level": "sa2", "state": "NT", "centroid": [131.8, -22.2]}, "geometry": {"type": "Point", "coordinates": [131.8, -22.2]}}
+  ]
+}

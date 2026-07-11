@@ -2,6 +2,7 @@ package com.example.springgraphqlmongo.ingestion.cache;
 
 import com.example.springgraphqlmongo.config.IngestionProperties;
 import com.example.springgraphqlmongo.ingestion.IngestionException;
+import com.example.springgraphqlmongo.ingestion.storage.DatasetVersionRegistrar;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,8 @@ public class WaDatasetCacheService {
 	private final RestClient.Builder restClientBuilder;
 
 	private final ObjectMapper objectMapper;
+
+	private final DatasetVersionRegistrar datasetVersionRegistrar;
 
 	public Path resolveCrimeTimeseriesFile(boolean refresh) {
 		IngestionProperties.WaSettings wa = properties.getWa();
@@ -115,6 +118,7 @@ public class WaDatasetCacheService {
 		manifest.setSha256(SaDatasetCacheService.sha256(bytes));
 		manifest.setLastFetched(Instant.now());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(manifestFile.toFile(), manifest);
+		datasetVersionRegistrar.register("wa:crime-statistics", resourceName, dataFile, manifest);
 		log.info("Cached WA resource {} ({} bytes) at {}", resourceName, bytes.length, dataFile);
 	}
 

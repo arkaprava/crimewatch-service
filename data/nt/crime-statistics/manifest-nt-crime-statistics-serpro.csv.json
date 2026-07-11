@@ -1,0 +1,11 @@
+{
+  "resourceName" : "nt-crime-statistics-serpro.csv",
+  "resourceId" : "fcbf7d12-0e0e-4e82-982a-0604c34b3fe4",
+  "downloadUrl" : "https://data.nt.gov.au/dataset/b93cb721-4922-483e-a737-eae2f884f8b5/resource/fcbf7d12-0e0e-4e82-982a-0604c34b3fe4/download/nt_crime_statistics_apr_2026.csv",
+  "resourceHash" : "",
+  "resourceLastModified" : null,
+  "revisionId" : null,
+  "etag" : null,
+  "sha256" : "c0c904f4196e90ab9a81bf1d3adbb158dbc1d7a34f6249fe1e487ef289c7ca2a",
+  "lastFetched" : "2026-07-09T12:11:30.210298Z"
+}
