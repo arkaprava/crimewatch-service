@@ -329,6 +329,96 @@ All ingested data is stored in a single MongoDB collection:
 
 Records are deduplicated by `(source, externalId)`.
 
+## Australian suburbs import
+
+The `australian_suburbs` collection stores suburb names, centroids, and approximate
+perimeter polygons used across the service:
+
+- **Geocoding** — SA, WA, and NSW ingestion adapters resolve suburb names from source
+  datasets to coordinates via `AustralianSuburbGeocoder`.
+- **`crimesNearLocation`** — matches aggregate crime records to suburbs by perimeter
+  or centroid proximity, and attaches `suburbBoundary` to query results.
+
+### Prerequisites
+
+- MongoDB running locally (`crime-info-mongodb` via Docker Compose):
+
+```bash
+docker compose -f infra/docker-compose-mongo.yml up -d
+```
+
+- Postcodes CSV with suburb coordinates. The default path is the sibling
+  `crime_watch_au` repo:
+
+```
+../crime_watch_au/tool/data/australian-postcodes.csv
+```
+
+Override with `POSTCODES_CSV` or pass a path to the Python builder (see below).
+
+### Full import (build GeoJSON + load MongoDB)
+
+From the project root:
+
+```bash
+./infra/import-australian-suburbs.sh
+```
+
+This script:
+
+1. Runs `infra/build-australian-suburbs-geojson.py` to write
+   `data/suburbs/australian-suburbs.geojson`
+2. Copies the GeoJSON into the MongoDB container
+3. Replaces all documents in `crime_info_service.australian_suburbs`
+
+### Build GeoJSON only
+
+To regenerate the cache file without touching MongoDB:
+
+```bash
+python3 infra/build-australian-suburbs-geojson.py
+```
+
+Optional custom CSV path:
+
+```bash
+python3 infra/build-australian-suburbs-geojson.py /path/to/australian-postcodes.csv
+```
+
+The builder deduplicates suburbs by name and state, skips rows without coordinates,
+and writes approximate ~1 km bounding-box polygons around each centroid.
+
+### Environment variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MONGO_CONTAINER` | Docker container name for MongoDB | `crime-info-mongodb` |
+| `MONGO_DB` | Target database | `crime_info_service` |
+| `POSTCODES_CSV` | Path to the postcodes CSV | `../crime_watch_au/tool/data/australian-postcodes.csv` |
+
+### Expected result
+
+A successful run imports roughly **15,264** suburbs (rows without latitude/longitude
+are skipped — typically ~881). Verify in MongoDB:
+
+```bash
+docker exec crime-info-mongodb mongosh --quiet crime_info_service --eval \
+  'db.australian_suburbs.countDocuments()'
+```
+
+### Startup reload (`SuburbCacheLoader`)
+
+On application startup, `SuburbCacheLoader` also populates `australian_suburbs` from
+`data/suburbs/australian-suburbs.geojson` when:
+
+- the collection is **empty**, or
+- the cache file has **more features** than MongoDB (for example after rebuilding
+  GeoJSON without re-running the shell import).
+
+If MongoDB already has at least as many documents as the cache file, startup skips
+the reload. Use `./infra/import-australian-suburbs.sh` for an explicit full replace
+independent of the running application.
+
 ## Crime data ingestion
 
 Sources are configured under `ingestion.sources` in
@@ -374,8 +464,8 @@ Offender reference data from
 [Recorded Crime - Offenders](https://data.sa.gov.au/data/dataset/recorded-crime-offenders)
 is correlated at SA state level and attached as `offenderContext`.
 
-Suburb boundaries and centroids are loaded from
-`data/suburbs/australian-suburbs.geojson` into `australian_suburbs` on startup.
+Suburb boundaries and centroids come from `australian_suburbs` (see
+[Australian suburbs import](#australian-suburbs-import)).
 
 **Cache layout:**
 
@@ -579,6 +669,13 @@ Pushes trigger [`.github/workflows/ci.yml`](.github/workflows/ci.yml), which run
 
 ## Local development tools
 
+Import Australian suburb geocoding data (see
+[Australian suburbs import](#australian-suburbs-import)):
+
+```bash
+./infra/import-australian-suburbs.sh
+```
+
 Poll the MongoDB dataset in the terminal (requires `crime-info-mongodb` running):
 
 ```bash
@@ -591,7 +688,7 @@ Optional: `INTERVAL=3 LIMIT=100 ./infra/watch-mongo-dataset.sh`
 
 ```
 data/                  # SA, WA, and NSW dataset caches; suburb GeoJSON
-infra/                 # Dockerfile, docker-compose, mongo-init.js, watch script
+infra/                 # Dockerfile, docker-compose, mongo-init.js, suburb import, watch script
 .github/workflows/     # CI pipeline
 src/main/java/com/example/springgraphqlmongo/
 ├── cache/             # Read-cache key generation and eviction

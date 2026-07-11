@@ -41,11 +41,38 @@ public class SuburbCacheLoader {
 		if (!properties.getSuburbs().isLoadOnStartup()) {
 			return;
 		}
-		if (suburbRepository.count() > 0) {
-			log.debug("Australian suburb cache already populated ({} records)", suburbRepository.count());
+		long existingCount = suburbRepository.count();
+		if (existingCount > 0) {
+			long cacheFeatureCount = countCacheFeatures();
+			if (cacheFeatureCount > 0 && cacheFeatureCount > existingCount) {
+				log.info(
+						"Suburb cache file has {} features but MongoDB has {}; reloading australian_suburbs",
+						cacheFeatureCount,
+						existingCount);
+				suburbRepository.deleteAll();
+				loadFromCacheFile();
+				return;
+			}
+			log.debug("Australian suburb cache already populated ({} records)", existingCount);
 			return;
 		}
 		loadFromCacheFile();
+	}
+
+	private long countCacheFeatures() {
+		Path cacheFile = Path.of(properties.getSuburbs().getCacheFile());
+		if (!Files.exists(cacheFile)) {
+			return 0;
+		}
+		try {
+			JsonNode root = objectMapper.readTree(Files.readString(cacheFile));
+			JsonNode features = root.path("features");
+			return features.isArray() ? features.size() : 0;
+		}
+		catch (IOException ex) {
+			log.warn("Could not read suburb cache file {} for feature count", cacheFile, ex);
+			return 0;
+		}
 	}
 
 	public void loadFromCacheFile() {
