@@ -36,3 +36,11 @@ out/
 
 ### Local debugging artifacts ###
 .tmp-*
+memory.db
+
+### Python ###
+__pycache__/
+*.pyc
+
+### Large multipart dataset caches (regenerated on demand via ingestCrimeData refresh) ###
+data/**/*.tar.part*

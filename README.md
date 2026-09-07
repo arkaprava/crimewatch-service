@@ -368,8 +368,14 @@ This script:
 
 1. Runs `infra/build-australian-suburbs-geojson.py` to write
    `data/suburbs/australian-suburbs.geojson`
-2. Copies the GeoJSON into the MongoDB container
-3. Replaces all documents in `crime_info_service.australian_suburbs`
+2. Runs `infra/import-australian-suburbs.py`, which replaces all documents in
+   `crime_info_service.australian_suburbs` in batches of 500 via `mongosh`
+
+You can also import without rebuilding GeoJSON:
+
+```bash
+python3 infra/import-australian-suburbs.py
+```
 
 ### Build GeoJSON only
 
@@ -428,17 +434,19 @@ Sources are configured under `ingestion.sources` in
 
 | `type` | Adapter | Data source | Status |
 |--------|---------|-------------|--------|
-| `ckan` (default) | `CkanCrimeDataSource` | CKAN `datastore_search` API | QLD configured in `dev`; others need `resource-id` |
+| `ckan` (default) | `CkanCrimeDataSource` | CKAN `datastore_search` API | QLD/VIC/ACT scaffolded, disabled; each needs a live `resource-id` |
 | `sa-crime-statistics` | `SaCrimeStatisticsDataSource` | [data.sa.gov.au](https://data.sa.gov.au/data/dataset/crime-statistics) CSV cache | Enabled in `dev` |
-| `wa-crime-statistics` | `WaCrimeStatisticsDataSource` | [WA Police Force crime timeseries](https://www.police.wa.gov.au/Crime/CrimeStatistics) XLSX/CSV cache | Enabled in `dev` |
+| `wa-crime-statistics` | `WaCrimeStatisticsDataSource` | [WA Police Force crime timeseries](https://www.police.wa.gov.au/Crime/CrimeStatistics) XLSX/CSV cache | Disabled by default |
 | `nsw-bocsar-statistics` | `NswBocsarStatisticsDataSource` | [BOCSAR SuburbData.zip](https://bocsarblob.blob.core.windows.net/bocsar-open-data/SuburbData.zip) | Enabled in `dev` |
+| `nt-crime-statistics` | `NtCrimeStatisticsDataSource` | [data.nt.gov.au](https://data.nt.gov.au) NT crime statistics CSV cache (SERPRO + PROMIS series) | Enabled in `dev` (both series) |
 | `tas-crime-statistics-supplement` | `TasCrimeStatisticsSupplementDataSource` | [Tasmania Police Crime Statistics Supplement](https://www.police.tas.gov.au/about-us/our-performance/) PDF cache | Enabled in `dev` |
-| `tas-corporate-performance` | `TasCorporatePerformanceDataSource` | [Tasmania Police Corporate Performance Report](https://www.police.tas.gov.au/about-us/our-performance/) PDF cache | Enabled in `dev` |
+| `tas-corporate-performance` | `TasCorporatePerformanceDataSource` | [Tasmania Police Corporate Performance Report](https://www.police.tas.gov.au/about-us/our-performance/) PDF cache | Disabled by default |
 
-### CKAN sources (QLD, VIC, NT, ACT)
+### CKAN sources (QLD, VIC, ACT)
 
-Set the dataset's datastore `resource-id` and `enabled: true` for each source.
-The `dev` profile enables QLD police-district statistics:
+`qld-police-offences`, `vic-csa-offences`, and `act-policing-incidents` are
+scaffolded but disabled. Set the dataset's datastore `resource-id` and
+`enabled: true` for each source to activate it:
 
 ```yaml
 - name: qld-police-offences
@@ -484,9 +492,19 @@ data/
     wa-police-districts.geojson
   nsw/
     crime-statistics/
-      suburb-data.csv.tar.gz          # single gzip tar when <=50 MB
-      suburb-data.csv.tar.part001     # multipart uncompressed tar when >50 MB
-      suburb-data-fixture.csv         # local fallback fixture
+      suburb-data.csv                 # committed ~500-row sample of the BOCSAR dataset
+      manifest-suburb-data.csv.json
+      suburb-data.csv.tar.gz          # full download cached as a single gzip tar when <=50 MB
+      suburb-data.csv.tar.part001     # full download cached as a multipart uncompressed tar when >50 MB (git-ignored)
+      suburb-data-fixture.csv         # minimal local fallback fixture
+  nt/
+    crime-statistics/
+      nt-crime-statistics-serpro.csv.tar.gz        # current (SERPRO) series cache
+      nt-crime-statistics-serpro-fixture.csv       # local fallback fixture
+      nt-crime-statistics-promis.csv.tar.gz        # historical (PROMIS) series cache
+      nt-crime-statistics-promis-fixture.csv       # local fallback fixture
+      manifest-*.json
+    nt-police-geography.geojson
   tas/
     crime-statistics/
       dpfem-crime-statistics-supplement-2024-25.pdf
@@ -523,6 +541,11 @@ open dataset (monthly offence counts by suburb from 1995). The adapter downloads
 the ZIP, extracts the wide-format CSV, unpivots month columns into
 `SUBURB_AGGREGATE` records, and geocodes suburbs.
 
+A committed ~500-row sample of the real dataset lives at
+`data/nsw/crime-statistics/suburb-data.csv` so `dev` and tests run offline without
+the full download. Its `manifest-suburb-data.csv.json` marks it fresh; pass
+`refresh: true` to replace it with the full BOCSAR dataset.
+
 The interactive [BOCSAR Crime Mapping Tool](https://crimetool.bocsar.nsw.gov.au/bocsar)
 is for exploration only — it does not expose a public bulk API. Use the open ZIP
 files for programmatic ingestion.
@@ -539,8 +562,55 @@ files for programmatic ingestion.
     category: Offence category
 ```
 
-First ingestion downloads ~680 KB ZIP and extracts a large CSV; allow time for
-the initial run. Pass `refresh: true` to force a re-download.
+A full re-download fetches a ~13 MB ZIP that expands to a ~430 MB CSV (every
+suburb, monthly since 1995); allow time and heap for the initial `refresh: true`
+run. The full download is cached under `data/nsw/` as a gzip tar, or a git-ignored
+multipart tar when it exceeds 50 MB.
+
+### Northern Territory (cache-first)
+
+NT crime statistics from [data.nt.gov.au](https://data.nt.gov.au) are ingested as
+`DISTRICT_AGGREGATE` records (monthly offence counts by reporting region / SA2).
+The NT publishes the series in two record systems, split at `ingestion.nt.serpro-cutover-month`:
+
+| `series` | Record system | Months covered | CKAN lookup |
+|----------|---------------|----------------|-------------|
+| `serpro` | SERPRO (current) | on/after the cutover month | latest package matching `ingestion.nt.serpro.package-search-query` |
+| `promis` | PROMIS (historical) | before the cutover month | pinned package `ingestion.nt.promis.package-name` |
+
+Each series is configured as its own source (both enabled in `dev`). Rows outside
+a series' month range are skipped so the two never overlap. Files are cached under
+`data/nt/` with a 7-day TTL; a `*-fixture.csv` is used when downloads fail.
+Reporting regions and SA2 names are resolved against
+`data/nt/nt-police-geography.geojson`; unresolved regions fall back to the NT
+centroid with `geocodeStatus: UNRESOLVED`.
+
+```yaml
+- name: nt-police-crime-statistics
+  enabled: true
+  type: nt-crime-statistics
+  series: serpro
+  state: NT
+  zone-id: Australia/Darwin
+  batch-size: 50000
+- name: nt-police-crime-statistics-historical
+  enabled: true
+  type: nt-crime-statistics
+  series: promis
+  state: NT
+  zone-id: Australia/Darwin
+  batch-size: 50000
+```
+
+```graphql
+mutation {
+  ingestCrimeData(source: "nt-police-crime-statistics", refresh: true) {
+    source
+    fetched
+    inserted
+  }
+}
+```
 
 ### Tasmania — PDF cache-first
 
@@ -625,9 +695,9 @@ In `prod`, set `REDIS_HOST` and `REDIS_PORT` (see [Environment variables](#envir
 
 | Profile | Purpose |
 |---------|---------|
-| `dev` (default) | Local development; GraphiQL enabled; dev API keys; QLD, SA, WA, and NSW sources enabled; Caffeine cache |
+| `dev` (default) | Local development; GraphiQL enabled; dev API keys; SA, NSW, NT (both series), and TAS supplement sources enabled; Caffeine cache |
 | `prod` | Production; `MONGODB_URI`, Redis, and API key env vars; GraphiQL and introspection disabled; Redis cache |
-| `test` | Integration tests; fixed test API keys; SA source only |
+| `test` | Integration tests; fixed test API keys; SA, WA, NSW, and NT sources enabled; startup ingestion off; Caffeine cache |
 
 Run with a specific profile:
 

@@ -8,8 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DatasetTarArchiveTest {
@@ -49,17 +47,7 @@ class DatasetTarArchiveTest {
 	}
 
 	@Test
-	void committedNswArchivePartsDoNotExceedFiftyMegabytes() throws Exception {
-		Path datasetPath = Path.of("data/nsw/crime-statistics/suburb-data.csv");
-		Optional<Path> archive = DatasetTarArchive.resolveArchive(datasetPath);
-		assertThat(archive).isPresent();
-		for (Path part : DatasetTarArchive.listMultipartParts(archive.get())) {
-			assertThat(Files.size(part)).isLessThanOrEqualTo(DatasetTarArchive.MAX_PART_BYTES);
-		}
-	}
-
-	@Test
-	void readsCommittedNswArchive() throws Exception {
+	void readsCommittedNswDataset() throws Exception {
 		Path datasetPath = Path.of("data/nsw/crime-statistics/suburb-data.csv");
 		assertThat(DatasetTarArchive.exists(datasetPath)).isTrue();
 		try (BufferedReader reader = DatasetTarArchive.openCsvReader(datasetPath)) {
