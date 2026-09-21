@@ -717,6 +717,10 @@ docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml
 The application image is built from [`infra/Dockerfile`](infra/Dockerfile) and
 runs on port 8080 with the `prod` profile (Redis-backed cache).
 
+For a $0/month deployment on Oracle Cloud's Always Free tier (this same
+compose stack, unchanged, on one Ampere A1 VM), see
+[`infra/oracle-always-free-setup.md`](infra/oracle-always-free-setup.md).
+
 Initialize MongoDB indexes and validators:
 
 ```bash

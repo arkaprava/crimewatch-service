@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd job for infra/oracle-launch-retry.sh. Copy to
+  ~/Library/LaunchAgents/com.crimewatch.oraclelaunch.plist and replace the
+  two /Users/<you>/... paths below with your actual home directory, then:
+
+    launchctl load -w ~/Library/LaunchAgents/com.crimewatch.oraclelaunch.plist
+
+  See infra/oracle-always-free-setup.md, Phase 1b.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.crimewatch.oraclelaunch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/REPLACE_ME/oracle-launch/try-launch.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/REPLACE_ME/oracle-launch/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/REPLACE_ME/oracle-launch/launchd.err.log</string>
+</dict>
+</plist>
