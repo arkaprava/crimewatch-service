@@ -16,6 +16,12 @@ services:
       REDIS_PORT: 6379
       CRIME_READ_API_KEY: ${CRIME_READ_API_KEY:-change-me-read}
       CRIME_INGEST_API_KEY: ${CRIME_INGEST_API_KEY:-change-me-ingest}
+      # Off by default in prod (see application-prod.yml) since introspection
+      # exposes the full schema to anyone who can reach /graphql. Set
+      # GRAPHIQL_ENABLED=true in .env to turn the IDE back on for exploring
+      # a deployment — /graphql queries still require an API key either way.
+      SPRING_GRAPHQL_GRAPHIQL_ENABLED: ${GRAPHIQL_ENABLED:-false}
+      SPRING_GRAPHQL_SCHEMA_INTROSPECTION_ENABLED: ${GRAPHIQL_ENABLED:-false}
     depends_on:
       mongodb:
         condition: service_healthy
