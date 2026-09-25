@@ -59,11 +59,27 @@ services:
 EOF
 
 echo "==> Starting Mongo + Redis on DB host (idempotent — no-op if already up)"
-ssh_db "cd ~/$REMOTE_DIR && docker compose -f infra/docker-compose-mongo.yml up -d"
+ssh_db "cd ~/$REMOTE_DIR && docker compose --env-file ./.env -f infra/docker-compose-mongo.yml up -d"
 ssh_db "cd ~/$REMOTE_DIR && docker exec -i crime-info-mongodb mongosh --quiet < infra/mongo-init.js"
 
+# --env-file is not optional: with multiple -f files, Compose defaults its
+# "project directory" (where it looks for .env) to the first -f file's
+# directory — here, infra/, where no .env exists — and silently falls back
+# to each variable's hardcoded default instead of erroring. Discovered the
+# hard way: a fully healthy, fully-connected deployment running on the
+# compose file's "change-me-read" fallback key with no indication anything
+# was wrong.
 echo "==> Deploying app on app host (--no-deps: never touches DB host's containers)"
-ssh_app "cd ~/$REMOTE_DIR && docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml -f infra/docker-compose.override.yml up -d --force-recreate --no-deps app"
+ssh_app "cd ~/$REMOTE_DIR && docker compose --env-file ./.env -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml -f infra/docker-compose.override.yml up -d --force-recreate --no-deps app"
+
+echo "==> Confirming the app actually picked up the real API key, not the compose fallback"
+RUNNING_KEY=$(ssh_app "docker inspect crime-info-service --format='{{range .Config.Env}}{{println .}}{{end}}'" | grep '^CRIME_READ_API_KEY=' | cut -d= -f2)
+ENV_FILE_KEY=$(ssh_app "grep '^CRIME_READ_API_KEY=' ~/$REMOTE_DIR/.env" | cut -d= -f2)
+if [ "$RUNNING_KEY" != "$ENV_FILE_KEY" ] || [ "$RUNNING_KEY" = "change-me-read" ]; then
+  echo "Container's CRIME_READ_API_KEY ('$RUNNING_KEY') doesn't match .env ('$ENV_FILE_KEY')."
+  echo "This is the --env-file gotcha above, or .env on the app host still has a placeholder — check both."
+  exit 1
+fi
 
 echo "==> Waiting for the app to report healthy (can take over a minute on a constrained host)"
 for i in $(seq 1 30); do

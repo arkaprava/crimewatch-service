@@ -236,16 +236,24 @@ CRIME_INGEST_API_KEY=<paste second generated value>
 EOF
 ```
 
-Docker Compose automatically loads a `.env` file from its working directory —
-no need to export these into the shell. This is the only thing standing
-between the public internet and `ingestCrimeData` once port 443 is open, so
-don't skip generating real values.
+**Every `docker compose` command from here on must include `--env-file
+./.env` explicitly.** Compose does *not* reliably auto-load a `.env` sitting
+in the current directory here — when multiple `-f` files are given, Compose
+defaults its "project directory" (where it looks for `.env`) to the
+directory of the *first* `-f` file, not your working directory. Since every
+compose file in this repo lives under `infra/`, Compose silently looks for
+`infra/.env` (which doesn't exist) and falls back to each variable's
+hardcoded default (`change-me-read`, etc.) with no error or warning — the
+container starts fine, just with the wrong key. This is easy to lose an hour
+to, because everything *looks* like it worked. `--env-file ./.env` bypasses
+the project-directory guessing entirely and points Compose straight at the
+file.
 
 ## Phase 6 — Start Mongo and Redis (DB host), then initialize
 
 ```bash
 cd ~/crimewatch-deploy
-docker compose -f infra/docker-compose-mongo.yml up -d
+docker compose --env-file ./.env -f infra/docker-compose-mongo.yml up -d
 docker exec -i crime-info-mongodb mongosh --quiet < infra/mongo-init.js
 ```
 
@@ -266,7 +274,8 @@ services:
     command: ["java", "-Xmx700m", "-XX:MaxMetaspaceSize=192m", "-jar", "app.war"]
 EOF
 
-docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml -f infra/docker-compose.override.yml \
+docker compose --env-file ./.env \
+  -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml -f infra/docker-compose.override.yml \
   up -d --force-recreate --no-deps app
 ```
 
@@ -280,7 +289,7 @@ first one.
 
 On a single-VM deployment, drop the override file and MONGODB_URI/REDIS_HOST
 lines (the defaults already point at the local `mongodb`/`redis` containers)
-and just run `docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml up -d --build`.
+and just run `docker compose --env-file ./.env -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml up -d --build`.
 
 Verify locally before moving on — expect this to take noticeably longer than
 you'd expect (a minute or more) on a memory-constrained micro host, since
@@ -383,6 +392,18 @@ curl -X POST https://your-domain-or-ip.sslip.io/graphql \
   -H "X-API-Key: <your read key>" \
   -d '{"query":"{ crimeIncidents(state: \"SA\") { title crimeType location { city } } }"}'
 ```
+
+Don't assume that last one is using the real key just because you set it in
+`.env` — the `--env-file` gotcha above means it's entirely possible to reach
+this point with a healthy, fully-connected app that's still running on the
+`change-me-read` fallback. Confirm explicitly:
+
+```bash
+docker inspect crime-info-service --format='{{range .Config.Env}}{{println .}}{{end}}' | grep CRIME_READ_API_KEY
+```
+
+should match what's actually in `.env`, not the compose file's hardcoded
+default.
 
 If running the two-VM split, two more checks confirm the app is really
 talking to the DB host over the private network rather than a stale local
