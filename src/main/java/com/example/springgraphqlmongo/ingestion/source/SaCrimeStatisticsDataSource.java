@@ -80,7 +80,7 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 
 	@Override
 	public List<CrimeRecord> fetchRecords() {
-		Map<String, SaOffenderStats> offenderStats = offenderReferenceLoader.loadReference(refresh);
+		Map<String, SaOffenderStats> offenderStats = loadOffenderStatsOrEmpty();
 		List<CrimeRecord> records = new ArrayList<>();
 		List<String> resources = config.getResourceNames();
 		if (resources == null || resources.isEmpty()) {
@@ -91,6 +91,22 @@ public class SaCrimeStatisticsDataSource implements CrimeDataSource {
 			records.addAll(parseCrimeStatistics(file, offenderStats));
 		}
 		return records;
+	}
+
+	/**
+	 * Offender correlation is a best-effort attachment (see {@link SaOffenderContext}),
+	 * not a prerequisite for ingesting the actual crime statistics — a failure here
+	 * (missing cache, failed live download) shouldn't abort the whole source.
+	 */
+	private Map<String, SaOffenderStats> loadOffenderStatsOrEmpty() {
+		try {
+			return offenderReferenceLoader.loadReference(refresh);
+		}
+		catch (Exception ex) {
+			log.warn("SA offender reference unavailable, proceeding without offender correlation: {}",
+					ex.getMessage());
+			return Map.of();
+		}
 	}
 
 	private List<CrimeRecord> parseCrimeStatistics(Path file, Map<String, SaOffenderStats> offenderStats) {
