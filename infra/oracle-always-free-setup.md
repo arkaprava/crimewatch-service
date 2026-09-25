@@ -1,10 +1,27 @@
 # Oracle Cloud Always Free deployment
 
-Deploy `crime-info-service` to an Oracle Cloud "Always Free" VM at $0/month —
-`infra/docker-compose-mongo.yml` + `docker-compose-app.yml` run unchanged, with
-the app, MongoDB, and Redis co-located on one Ampere A1 instance (4 OCPU / 24 GB,
-free forever). See the parent [README.md](../README.md) for the application
-itself; this doc only covers getting a VM up and the app running on it.
+Deploy `crime-info-service` to Oracle Cloud's "Always Free" tier at $0/month.
+See the parent [README.md](../README.md) for the application itself; this doc
+only covers getting VM(s) up and the app running on them.
+
+## One VM or two?
+
+If you land an Ampere A1 instance (4 OCPU / 24 GB), run everything on it —
+`infra/docker-compose-mongo.yml` + `docker-compose-app.yml` unchanged, app and
+database co-located, plenty of headroom.
+
+If Ampere capacity isn't available (see [Phase 1b](#phase-1b--out-of-host-capacity))
+and you fall back to the AMD `E2.1.Micro` shapes instead, **use both of your two
+Always Free slots and split the stack across them** — one for MongoDB + Redis,
+one for the app + Caddy. This isn't optional at that size: co-locating the JVM
+with Mongo and Redis on a single 1 GB box was tried first and reliably failed —
+Spring context startup alone pushed memory tight enough to make `dockerd` itself
+hang under pressure, `docker logs`/`docker stats` would stop responding, and the
+whole VM occasionally needed a hypervisor-level reboot to recover. Two VMs at
+1 GB each, single-purpose, is dramatically more stable than one VM at 1 GB
+doing both jobs. The rest of this doc assumes the two-VM split — for a single
+Ampere VM, skip the "DB host" / "app host" distinction and run every command
+on the one box.
 
 ## Phase 0 — Prerequisites
 
@@ -120,7 +137,7 @@ notification on success. It only fires while the machine is awake; run
 `caffeinate -s &` to keep retrying through the night if you want maximum
 coverage, or just let it opportunistically retry whenever the Mac is on.
 
-## Phase 2 — Open the firewall (both layers)
+## Phase 2 — Open the firewall (both layers, on the app host)
 
 Oracle has *two* firewalls — the cloud Security List and the OS firewall on
 the instance. Missing either gives a silent connection refused.
@@ -130,7 +147,7 @@ Ingress Rules**: source `0.0.0.0/0`, TCP, port `80`; another for port `443`.
 (Port 22 is open by default — consider narrowing its source CIDR to your own
 IP once access is confirmed.)
 
-**On the VM:**
+**On the app host:**
 
 ```bash
 sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
@@ -138,69 +155,152 @@ sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
 sudo netfilter-persistent save 2>/dev/null || sudo iptables-save | sudo tee /etc/iptables/rules.v4
 ```
 
-## Phase 3 — First login and base packages
+If you're running the two-VM split, also add Mongo/Redis ingress rules — but
+scoped to the VCN's private CIDR only (`10.0.0.0/16`), never `0.0.0.0/0`, so
+the database is reachable from the app host but not the public internet:
 
 ```bash
-ssh -i ~/.ssh/crimewatch-oracle ubuntu@<your-reserved-public-ip>
+# Console → Security List → Add Ingress Rule, twice:
+#   source 10.0.0.0/16, TCP, port 27017
+#   source 10.0.0.0/16, TCP, port 6379
+```
+
+## Phase 3 — First login and base packages
+
+Both hosts only ever need Docker — nothing else. In particular, **don't
+install a JDK or clone the source repo onto either VM.** The war is built
+once on your own machine and shipped as a built artifact (Phase 4) — a
+production host has no business holding a full JDK, Gradle, git history, and
+Java sources just to compile something that runs the same way regardless of
+where it was built.
+
+```bash
+ssh -i ~/.ssh/crimewatch-oracle ubuntu@<host-public-ip>
 
 sudo apt update && sudo apt upgrade -y
-
-# Docker Engine + Compose plugin (arm64 build, official repo)
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker $USER
 newgrp docker
-
-# JDK 21 — this repo's settings.gradle has no foojay toolchain resolver, so
-# Gradle needs a JDK already installed rather than auto-downloading one
-sudo apt install -y openjdk-21-jdk git
-java -version   # confirm 21.x, arm64
+mkdir -p ~/crimewatch-deploy/infra
 ```
 
-## Phase 4 — Build the app
+Repeat on both hosts if running the two-VM split.
+
+## Phase 4 — Build the war locally and ship only the artifact
+
+**On your own machine**, not either VM:
 
 ```bash
-git clone https://github.com/<your-username>/crimewatch-service.git
 cd crimewatch-service
 ./gradlew bootWar
 ```
 
-This produces the war that `infra/Dockerfile` packages as-is — no changes
-needed for ARM, since it's plain JVM bytecode; Docker resolves the correct
-`eclipse-temurin` image architecture automatically.
+This needs a local JDK 21 (this repo's `settings.gradle` has no foojay
+toolchain resolver, so Gradle needs one already installed, same as it would
+on a VM — the difference is *where* that JDK lives, not whether one exists
+anywhere). The build produces a plain, architecture-independent war —
+`infra/Dockerfile` packages it as-is, and Docker resolves the correct
+`eclipse-temurin` base image architecture (arm64 for Ampere, amd64 for the
+micro shapes) automatically on whichever host builds the image.
 
-## Phase 5 — Configure real secrets
+Ship only what each host actually needs — no `src/`, no `.git`, no Gradle:
 
 ```bash
-cp .env.example .env
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"   # run twice
+# DB host: just the Mongo/Redis compose file + init script
+scp -i ~/.ssh/crimewatch-oracle infra/docker-compose-mongo.yml infra/mongo-init.js \
+  ubuntu@<db-host-ip>:~/crimewatch-deploy/infra/
+
+# App host: Dockerfile + both compose files + the built war
+mkdir -p build/libs   # already exists after bootWar
+scp -i ~/.ssh/crimewatch-oracle infra/Dockerfile infra/docker-compose-mongo.yml infra/docker-compose-app.yml \
+  ubuntu@<app-host-ip>:~/crimewatch-deploy/infra/
+scp -i ~/.ssh/crimewatch-oracle build/libs/*.war \
+  ubuntu@<app-host-ip>:~/crimewatch-deploy/build/libs/
 ```
 
-Replace `CRIME_READ_API_KEY` / `CRIME_INGEST_API_KEY` in `.env` with the
-generated values — these are the only thing standing between the public
-internet and `ingestCrimeData` once port 443 is open. Export them (or
-`source` a version of `.env` written as `export KEY=value`) before the next
-step, since `docker-compose-app.yml` reads them from the shell environment.
+(On a single-VM Ampere deployment, both sets of files go to the same host.)
 
-## Phase 6 — Start Mongo and Redis, then initialize
+[`infra/deploy-to-oracle.sh`](deploy-to-oracle.sh) automates this entire
+phase plus 6 and 7 below — see [Automating redeploys](#automating-redeploys)
+once you've done it manually once and understand what it's doing.
+
+## Phase 5 — Configure real secrets (app host only)
 
 ```bash
-docker compose -f infra/docker-compose-mongo.yml up -d
+ssh -i ~/.ssh/crimewatch-oracle ubuntu@<app-host-ip>
+cd ~/crimewatch-deploy
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"   # run twice
+cat > .env <<'EOF'
+CRIME_READ_API_KEY=<paste first generated value>
+CRIME_INGEST_API_KEY=<paste second generated value>
+EOF
+```
+
+**Every `docker compose` command from here on must include `--env-file
+./.env` explicitly.** Compose does *not* reliably auto-load a `.env` sitting
+in the current directory here — when multiple `-f` files are given, Compose
+defaults its "project directory" (where it looks for `.env`) to the
+directory of the *first* `-f` file, not your working directory. Since every
+compose file in this repo lives under `infra/`, Compose silently looks for
+`infra/.env` (which doesn't exist) and falls back to each variable's
+hardcoded default (`change-me-read`, etc.) with no error or warning — the
+container starts fine, just with the wrong key. This is easy to lose an hour
+to, because everything *looks* like it worked. `--env-file ./.env` bypasses
+the project-directory guessing entirely and points Compose straight at the
+file.
+
+## Phase 6 — Start Mongo and Redis (DB host), then initialize
+
+```bash
+cd ~/crimewatch-deploy
+docker compose --env-file ./.env -f infra/docker-compose-mongo.yml up -d
 docker exec -i crime-info-mongodb mongosh --quiet < infra/mongo-init.js
 ```
 
-## Phase 7 — Start the app and verify locally
+## Phase 7 — Start the app (app host), pointed at the DB host
+
+If running the two-VM split, the app needs to reach Mongo/Redis over the
+VCN's private network instead of the local Docker network, and the JVM heap
+needs capping to fit a 1 GB host. Both go in a local override file — **never
+committed**, since it's specific to this deployment's topology:
 
 ```bash
-docker compose -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml up -d --build
-curl localhost:8080/actuator/health
+cat > infra/docker-compose.override.yml <<'EOF'
+services:
+  app:
+    environment:
+      MONGODB_URI: mongodb://<db-host-private-ip>:27017/crime_info_service
+      REDIS_HOST: <db-host-private-ip>
+    command: ["java", "-Xmx700m", "-XX:MaxMetaspaceSize=192m", "-jar", "app.war"]
+EOF
 
-curl -X POST localhost:8080/graphql \
-  -H 'Content-Type: application/json' \
-  -H "X-API-Key: $CRIME_READ_API_KEY" \
-  -d '{"query":"{ ingestionSources }"}'
+docker compose --env-file ./.env \
+  -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml -f infra/docker-compose.override.yml \
+  up -d --force-recreate --no-deps app
 ```
 
-## Phase 8 — TLS with Caddy
+**`--no-deps` is not optional here.** `docker-compose-app.yml`'s `app`
+service declares `depends_on: mongodb, redis` — without `--no-deps`, Compose
+starts those dependencies too even when `app` is the only service named on
+the command line, silently bringing up a second, unwanted local Mongo/Redis
+on the app host and defeating the entire point of the split. This is the
+single most important thing to get right on every redeploy, not just the
+first one.
+
+On a single-VM deployment, drop the override file and MONGODB_URI/REDIS_HOST
+lines (the defaults already point at the local `mongodb`/`redis` containers)
+and just run `docker compose --env-file ./.env -f infra/docker-compose-mongo.yml -f infra/docker-compose-app.yml up -d --build`.
+
+Verify locally before moving on — expect this to take noticeably longer than
+you'd expect (a minute or more) on a memory-constrained micro host, since
+JVM startup competes for CPU with everything else running:
+
+```bash
+docker logs -f crime-info-service   # watch for "Started CrimeInfoServiceApp"
+curl localhost:8080/actuator/health
+```
+
+## Phase 8 — TLS with Caddy (app host only)
 
 Install Caddy natively on the host (not in Docker) so it can bind 80/443 and
 reverse-proxy to the app container's published `8080`:
@@ -230,14 +330,20 @@ port 8080 itself is never exposed to the internet.
 
 ## Phase 9 — Make it durable
 
-**Survive reboots:**
+**Survive reboots** (on whichever host runs each container):
 
 ```bash
-docker update --restart unless-stopped crime-info-mongodb crime-info-redis crime-info-service
+docker update --restart unless-stopped crime-info-mongodb crime-info-redis   # DB host
+docker update --restart unless-stopped crime-info-service                    # app host
 ```
 
+Without this, a reboot — including one Oracle's hypervisor forces through on
+its own if the guest OS stops responding to a graceful shutdown signal, which
+can happen under the kind of memory pressure a 1 GB host sees — leaves every
+container stopped rather than restarting automatically.
+
 **Nightly backups to free Object Storage** (create a bucket once in Console:
-Storage → Object Storage → Create Bucket):
+Storage → Object Storage → Create Bucket; run on the DB host):
 
 ```bash
 sudo apt install -y python3-pip && pip3 install oci-cli
@@ -256,8 +362,8 @@ sudo chmod +x /usr/local/bin/backup-mongo.sh
 ( crontab -l 2>/dev/null; echo "0 2 * * * /usr/local/bin/backup-mongo.sh" ) | crontab -
 ```
 
-**Cap the ingestion job's CPU share** so the twice-daily cron (PDFBox/POI
-parsing) can't starve live GraphQL requests on shared hardware:
+**Cap the ingestion job's CPU share** (app host) so the twice-daily cron
+(PDFBox/POI parsing) can't starve live GraphQL requests on shared hardware:
 
 ```bash
 docker update --cpus 2 crime-info-service
@@ -276,8 +382,57 @@ From your own machine, not the VM:
 ```bash
 curl https://your-domain-or-ip.sslip.io/actuator/health
 
+# unauthenticated request should be rejected — confirms the API key filter
+# is actually active, not just that something is listening
+curl -o /dev/null -w '%{http_code}\n' -X POST https://your-domain-or-ip.sslip.io/graphql \
+  -H 'Content-Type: application/json' -d '{"query":"{ ingestionSources }"}'   # expect 401
+
 curl -X POST https://your-domain-or-ip.sslip.io/graphql \
   -H 'Content-Type: application/json' \
   -H "X-API-Key: <your read key>" \
   -d '{"query":"{ crimeIncidents(state: \"SA\") { title crimeType location { city } } }"}'
 ```
+
+Don't assume that last one is using the real key just because you set it in
+`.env` — the `--env-file` gotcha above means it's entirely possible to reach
+this point with a healthy, fully-connected app that's still running on the
+`change-me-read` fallback. Confirm explicitly:
+
+```bash
+docker inspect crime-info-service --format='{{range .Config.Env}}{{println .}}{{end}}' | grep CRIME_READ_API_KEY
+```
+
+should match what's actually in `.env`, not the compose file's hardcoded
+default.
+
+If running the two-VM split, two more checks confirm the app is really
+talking to the DB host over the private network rather than a stale local
+container (a healthy `/actuator/health` alone is good evidence — Spring Boot
+aggregates the Mongo/Redis health indicators into the overall status, so
+`UP` already implies both connections work — but these are unambiguous):
+
+```bash
+# on the app host — should show the DB host's private IP, not "mongodb"/"redis"
+docker inspect crime-info-service --format='{{range .Config.Env}}{{println .}}{{end}}' \
+  | grep -E 'MONGODB_URI|REDIS_HOST'
+
+# on the DB host — a non-zero, ideally growing count confirms real traffic
+# arriving from across the VCN
+docker exec crime-info-mongodb mongosh --quiet --eval "db.serverStatus().connections"
+```
+
+## Automating redeploys
+
+Once you've been through Phases 4–7 by hand and understand what each step
+does, [`infra/deploy-to-oracle.sh`](deploy-to-oracle.sh) automates the
+repeatable build-and-ship cycle — everything except the one-time VM
+provisioning (Phases 1–3, 8–9), which stays manual since it's Console-driven
+and only happens once. Edit the host IPs at the top of the script, then:
+
+```bash
+./infra/deploy-to-oracle.sh
+```
+
+It builds the war locally, ships only the artifact and compose/config files
+(never source) to the right host(s), and redeploys the app with `--no-deps`
+so it never disturbs the DB host's containers.
