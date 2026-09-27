@@ -20,7 +20,6 @@ import com.example.springgraphqlmongo.ingestion.source.NtCrimeStatisticsDataSour
 import com.example.springgraphqlmongo.ingestion.source.NswBocsarStatisticsDataSource;
 import com.example.springgraphqlmongo.ingestion.source.SaCrimeStatisticsDataSource;
 import com.example.springgraphqlmongo.ingestion.source.TasCorporatePerformanceDataSource;
-import org.springframework.dao.DuplicateKeyException;
 import com.example.springgraphqlmongo.ingestion.source.TasCrimeStatisticsSupplementDataSource;
 import com.example.springgraphqlmongo.ingestion.source.WaCrimeStatisticsDataSource;
 import com.example.springgraphqlmongo.ingestion.storage.IngestionContext;
@@ -28,6 +27,7 @@ import com.example.springgraphqlmongo.repository.CrimeIncidentRepository;
 import com.example.springgraphqlmongo.repository.IngestionRunRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.geo.Point;
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 import org.springframework.stereotype.Service;
