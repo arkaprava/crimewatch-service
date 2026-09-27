@@ -20,6 +20,7 @@ import com.example.springgraphqlmongo.ingestion.source.NtCrimeStatisticsDataSour
 import com.example.springgraphqlmongo.ingestion.source.NswBocsarStatisticsDataSource;
 import com.example.springgraphqlmongo.ingestion.source.SaCrimeStatisticsDataSource;
 import com.example.springgraphqlmongo.ingestion.source.TasCorporatePerformanceDataSource;
+import org.springframework.dao.DuplicateKeyException;
 import com.example.springgraphqlmongo.ingestion.source.TasCrimeStatisticsSupplementDataSource;
 import com.example.springgraphqlmongo.ingestion.source.WaCrimeStatisticsDataSource;
 import com.example.springgraphqlmongo.ingestion.storage.IngestionContext;
@@ -163,6 +164,17 @@ public class CrimeIngestionService {
 				}
 				crimeIncidentRepository.save(toIncident(source.name(), record, run.getId()));
 				inserted++;
+			}
+			catch (DuplicateKeyException ex) {
+				// isDuplicate() above is check-then-act, not atomic: under concurrent
+				// ingestion of the same source (e.g. two overlapping runs), both can
+				// see "not yet present" and both attempt to save, with the unique
+				// index (source, externalId) rejecting whichever loses the race. The
+				// record already exists either way, so this is a duplicate outcome,
+				// not a failure — log it as routine, not a warning.
+				duplicates++;
+				log.debug("Record {} from source {} already exists (concurrent ingestion race): {}",
+						record.externalId(), source.name(), ex.getMostSpecificCause().getMessage());
 			}
 			catch (Exception ex) {
 				failed++;
