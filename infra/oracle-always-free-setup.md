@@ -212,11 +212,21 @@ scp -i ~/.ssh/crimewatch-oracle infra/docker-compose-mongo.yml infra/mongo-init.
 
 # App host: Dockerfile + both compose files + the built war
 mkdir -p build/libs   # already exists after bootWar
+ssh -i ~/.ssh/crimewatch-oracle ubuntu@<app-host-ip> "mkdir -p ~/crimewatch-deploy/data/suburbs"
 scp -i ~/.ssh/crimewatch-oracle infra/Dockerfile infra/docker-compose-mongo.yml infra/docker-compose-app.yml \
   ubuntu@<app-host-ip>:~/crimewatch-deploy/infra/
 scp -i ~/.ssh/crimewatch-oracle build/libs/*.war \
   ubuntu@<app-host-ip>:~/crimewatch-deploy/build/libs/
+scp -i ~/.ssh/crimewatch-oracle data/suburbs/australian-suburbs.geojson \
+  ubuntu@<app-host-ip>:~/crimewatch-deploy/data/suburbs/
 ```
+
+The last file matters more than its size suggests: `SuburbCacheLoader` resolves
+it as a plain filesystem path relative to the app's working directory, not a
+classpath resource, so `infra/Dockerfile` `COPY`s it into the image at build
+time. Skip it and `australian_suburbs` stays empty — every ingested record
+still works, just with `geocodeStatus: UNRESOLVED`, and `crimesNearLocation`
+and suburb-boundary lookups silently return nothing.
 
 (On a single-VM Ampere deployment, both sets of files go to the same host.)
 
