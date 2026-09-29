@@ -62,8 +62,31 @@ services:
     command: ["java", "-Xmx${JVM_XMX}", "-XX:MaxMetaspaceSize=${JVM_MAX_METASPACE}", "-jar", "app.war"]
 EOF
 
+DB_COMPOSE_FILES="-f infra/docker-compose-mongo.yml"
+if [ "$DB_HOST" != "$APP_HOST" ]; then
+  # Two-VM split, 1GB DB host: left uncapped, Mongo's WiredTiger cache plus
+  # engine overhead can grow enough to get SIGKILLed by the OOM killer (exit
+  # 137) — and without a restart policy it stays down silently. Found live:
+  # 23 hours dead before anyone noticed. mem_limit/restart here, not in the
+  # shared compose file, since a full Ampere host (DB_HOST == APP_HOST)
+  # doesn't need this cap.
+  echo "==> Writing DB host override (memory caps + restart policy)"
+  ssh_db "cat > ~/$REMOTE_DIR/infra/docker-compose.override.yml" <<'EOF'
+services:
+  mongodb:
+    mem_limit: 500m
+    restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+  redis:
+    mem_limit: 128m
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+EOF
+  DB_COMPOSE_FILES="$DB_COMPOSE_FILES -f infra/docker-compose.override.yml"
+fi
+
 echo "==> Starting Mongo + Redis on DB host (idempotent — no-op if already up)"
-ssh_db "cd ~/$REMOTE_DIR && docker compose --env-file ./.env -f infra/docker-compose-mongo.yml up -d"
+ssh_db "cd ~/$REMOTE_DIR && docker compose --env-file ./.env $DB_COMPOSE_FILES up -d"
 ssh_db "cd ~/$REMOTE_DIR && docker exec -i crime-info-mongodb mongosh --quiet < infra/mongo-init.js"
 
 # --env-file is not optional: with multiple -f files, Compose defaults its
