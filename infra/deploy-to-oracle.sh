@@ -39,7 +39,7 @@ echo "==> Built: $WAR"
 
 echo "==> Ensuring remote directories exist"
 ssh_db  "mkdir -p ~/$REMOTE_DIR/infra"
-ssh_app "mkdir -p ~/$REMOTE_DIR/infra ~/$REMOTE_DIR/build/libs"
+ssh_app "mkdir -p ~/$REMOTE_DIR/infra ~/$REMOTE_DIR/build/libs ~/$REMOTE_DIR/data/suburbs"
 
 echo "==> Syncing DB host files (Mongo/Redis compose + init script — no app code)"
 scp_db infra/docker-compose-mongo.yml infra/mongo-init.js
@@ -47,6 +47,10 @@ scp_db infra/docker-compose-mongo.yml infra/mongo-init.js
 echo "==> Syncing app host files (Dockerfile + compose files + built war — no source)"
 scp_app infra/Dockerfile infra/docker-compose-mongo.yml infra/docker-compose-app.yml
 scp -i "$SSH_KEY" "$WAR" "$SSH_USER@$APP_HOST:~/$REMOTE_DIR/build/libs/"
+# suburb geocoding reference data - the Dockerfile COPYs this into the image;
+# only needs re-sending if data/suburbs/australian-suburbs.geojson changes
+scp -i "$SSH_KEY" data/suburbs/australian-suburbs.geojson \
+  "$SSH_USER@$APP_HOST:~/$REMOTE_DIR/data/suburbs/"
 
 echo "==> Writing app host override (DB host private IP + capped JVM heap)"
 ssh_app "cat > ~/$REMOTE_DIR/infra/docker-compose.override.yml" <<EOF
