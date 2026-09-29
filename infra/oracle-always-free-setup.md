@@ -261,11 +261,35 @@ file.
 
 ## Phase 6 — Start Mongo and Redis (DB host), then initialize
 
+On a 1 GB micro host, cap Mongo's memory explicitly first — left uncapped,
+WiredTiger's cache plus engine overhead can grow enough to get the container
+`SIGKILL`ed by the Linux OOM killer (exit code 137), and with no restart
+policy it just stays down silently. Found live: Mongo sat dead for 23 hours
+before anyone noticed the app couldn't reach it. Same pattern as the app
+host's JVM-heap override — a local file, never committed, since a full
+Ampere host doesn't need this cap:
+
 ```bash
+cat > infra/docker-compose.override.yml <<'EOF'
+services:
+  mongodb:
+    mem_limit: 500m
+    restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+  redis:
+    mem_limit: 128m
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+EOF
+
 cd ~/crimewatch-deploy
-docker compose --env-file ./.env -f infra/docker-compose-mongo.yml up -d
+docker compose --env-file ./.env -f infra/docker-compose-mongo.yml -f infra/docker-compose.override.yml up -d
 docker exec -i crime-info-mongodb mongosh --quiet < infra/mongo-init.js
 ```
+
+On a single-VM deployment, skip the override — the shared
+`infra/docker-compose-mongo.yml` file is intentionally left uncapped so it
+also works unmodified on a full Ampere host.
 
 ## Phase 7 — Start the app (app host), pointed at the DB host
 
